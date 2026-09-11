@@ -1,0 +1,45 @@
+# 환경변수 (API 키)
+.env
+.env.local
+.env*.local
+
+# 계약서 사진은 절대 올리지 않습니다.
+#
+# 주의: assets/ 는 앱 아이콘·스플래시가 들어 있어 깃에 올라갑니다.
+#       계약서 사진이나 개인정보가 담긴 스크린샷을 여기 두지 마세요.
+#       테스트용 계약서는 samples/ 또는 private/ 에 둡니다. (둘 다 무시됨)
+samples/
+private/
+
+# 의존성
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+*.orig.*
+
+# 네이티브 빌드 (Expo Go 로 개발하므로 불필요)
+android/
+ios/
+.kotlin/
+
+# 서명 키 (절대 커밋 금지)
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# TypeScript
+*.tsbuildinfo
+
+# 기타
+.DS_Store
+npm-debug.*
+yarn-debug.*
+yarn-error.*
