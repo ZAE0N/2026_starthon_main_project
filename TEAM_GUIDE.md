@@ -43,10 +43,13 @@ node -v
 전정현이 깃허브 주소를 알려줍니다. 터미널에서:
 
 ```
-git clone <깃허브주소>
-cd albacheck
+git clone https://github.com/ZAE0N/2026_starthon_main_project.git
+cd 2026_starthon_main_project
+git checkout develop
 npm install
 ```
+
+`git checkout develop` 을 빼먹지 마세요. 작업은 전부 `develop` 에서 합니다.
 
 `npm install` 은 2~3분 걸립니다. 글자가 주르륵 올라가도 정상입니다.
 
@@ -167,6 +170,9 @@ git push origin feat/help
 그다음 깃허브 사이트에 들어가면 노란 줄에 **"Compare & pull request"** 버튼이
 떠 있습니다. 눌러서 만들면 끝입니다. 합치는 건 전정현이 합니다.
 
+> **PR 을 만들 때 받는 쪽(base)이 `develop` 인지 꼭 확인하세요.**
+> 기본값이 `main` 으로 잡혀 있으면 바꿔야 합니다.
+
 다음 날부터는 브랜치를 새로 만들 필요 없이 `add` → `commit` → `push` 만 하면 됩니다.
 
 ### 주의
@@ -184,13 +190,38 @@ git push origin feat/help
 그래서 서버가 아직 없어도 화면을 다 만들 수 있습니다.
 나중에 전정현이 서버를 붙이면 이 값만 바꿉니다. 화면 코드는 안 건드립니다.
 
+### 에러 화면 만들 때 (나영웅)
+
+에러 화면은 눈으로 봐야 만들 수 있는데, 가짜 결과는 항상 성공만 나옵니다.
+그래서 일부러 에러를 내는 스위치를 넣어뒀습니다. `.env` 를 이렇게 고치고
+
+```
+EXPO_PUBLIC_MOCK_ERROR=timeout
+```
+
+터미널에서 `Ctrl+C` 후 **`npx expo start -c`** 로 다시 켜면 그 에러 화면이 뜹니다.
+`timeout` 자리에 `network` `server` `unreadable` `notContract` 를 넣어 다섯 가지를 모두 확인하세요.
+다 만들었으면 값을 다시 비웁니다.
+
+> `-c` 를 빼면 `.env` 변경이 반영되지 않습니다. 아주 흔한 실수입니다.
+
 ---
 
 ## 9. 비개발자 (김종현)
 
 `server/laws.json` 을 채우는 게 담당입니다. 코드가 아니라 **조사**입니다.
 
-`TODO` 라고 적힌 곳이 6개 있습니다. 각각 이 두 가지를 채웁니다.
+`TODO` 가 남은 항목은 **5개** 입니다.
+
+| 항목 | 관련 법 |
+|---|---|
+| `hours` 근로시간 | 근로기준법 제50조 |
+| `break` 휴게시간 | 근로기준법 제54조 |
+| `weeklyPay` 주휴수당 | 근로기준법 제55조 |
+| `penalty` 위약금 조항 | 근로기준법 제20조 |
+| `required` 명시 항목 | 근로기준법 제17조 |
+
+각각 이 두 가지를 채웁니다.
 
 - `lawText` — 법 조문 원문 (국가법령정보센터 law.go.kr 에서 검색)
 - `rule` — **어떻게 판단하는지 한 문장**
@@ -214,12 +245,16 @@ git push origin feat/help
 
 ---
 
-## 10. 오늘 안에 할 일
+## 10. 지금 바로 할 일
 
 - Node.js, VS Code, Expo Go 설치
-- 프로젝트 받아서 `npx expo start` 로 폰에 화면 띄우기
-- 자기 담당 파일 위치 확인
-- (김종현) `server/laws.json` TODO 채우기 시작
+- 프로젝트 받아서(`git checkout develop` 잊지 말기) `npx expo start` 로 폰에 화면 띄우기
+- 랜딩 → 촬영 → 분석 → 결과 → 조항 상세 → 말할 문장 까지 **직접 눌러보기**
+- 자기 담당 파일 열어서 맨 위 주석의 "할 일" 확인
+- (김종현) `server/laws.json` TODO 5개 채우기 + **테스트용 계약서 3종 제작**
 
-**폰에 화면이 뜨는 것까지가 오늘 목표입니다.** 여기서 막히면 내일 아무것도 못 합니다.
-안 되면 바로 채팅에 올리세요.
+화면 9개는 이미 동작하는 상태로 올라가 있습니다. 처음부터 만드는 게 아니라
+**시안에 맞게 다듬는 작업**입니다.
+
+**폰에 화면이 뜨고 끝까지 눌러지는 것까지가 오늘 목표입니다.**
+안 되면 혼자 붙잡지 말고 바로 채팅에 올리세요.

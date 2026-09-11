@@ -19,7 +19,19 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? "";
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === "true";
 
-const TIMEOUT_MS = 25000;
+/**
+ * 목 모드에서 일부러 에러를 내고 싶을 때 씁니다. (.env 의 EXPO_PUBLIC_MOCK_ERROR)
+ * 에러 화면은 종류마다 안내가 달라서 눈으로 확인하지 않으면 만들 수 없습니다.
+ *   EXPO_PUBLIC_MOCK_ERROR=timeout    → "분석이 오래 걸리고 있어요"
+ * 값을 바꾼 뒤에는 반드시 npx expo start -c 로 캐시를 지우고 다시 시작하세요.
+ */
+const MOCK_ERROR = process.env.EXPO_PUBLIC_MOCK_ERROR ?? "";
+
+/**
+ * 25초는 짧습니다. 사진 업로드 + 계약서 판독 + 8개 항목 JSON 생성까지 합치면
+ * 넘는 경우가 있고, 시연 중에 타임아웃이 뜨면 그걸로 끝입니다.
+ */
+const TIMEOUT_MS = 45000;
 
 /** 에러 종류. 화면은 이 값으로 안내 문구를 고릅니다. (constants/copy.ts) */
 export type ApiErrorKind =
@@ -99,13 +111,40 @@ function normalize(raw: any): InspectResult {
 /* 호출                                                                 */
 /* ------------------------------------------------------------------ */
 
+/** 에러 이름 문자열이 실제 ApiErrorKind 인지 확인 */
+const ERROR_KINDS: ApiErrorKind[] = [
+  "network",
+  "timeout",
+  "server",
+  "unreadable",
+  "notContract",
+];
+
+/**
+ * 진행 중인 요청. 버튼을 연타해도 한 번만 보냅니다.
+ * 화면에서도 버튼을 비활성화하지만, 한 군데서 더 막아둡니다. (연타 = API 비용)
+ */
+let inFlight: Promise<InspectResult> | null = null;
+
 /** 계약서 사진(base64)을 보내 판정 결과를 받습니다. */
-export async function inspectContract(
-  imageBase64: string
-): Promise<InspectResult> {
+export function inspectContract(imageBase64: string): Promise<InspectResult> {
+  if (inFlight) return inFlight;
+  inFlight = run(imageBase64).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function run(imageBase64: string): Promise<InspectResult> {
   if (USE_MOCK || !API_URL) {
     await new Promise((r) => setTimeout(r, 2000));
-    return mockResult;
+    if (MOCK_ERROR) {
+      const kind = ERROR_KINDS.includes(MOCK_ERROR as ApiErrorKind)
+        ? (MOCK_ERROR as ApiErrorKind)
+        : "server";
+      throw new ApiError(kind, "EXPO_PUBLIC_MOCK_ERROR");
+    }
+    return { ...mockResult, id: String(Date.now()) };
   }
 
   const controller = new AbortController();
@@ -142,9 +181,17 @@ export async function inspectContract(
 
   const result = normalize(raw);
 
-  // 전부 "확인하지 못했어요"면 사실상 인식 실패입니다.
-  const allUnknown = result.clauses.every((c) => !c.law && !c.original);
-  if (allUnknown) throw new ApiError("unreadable");
+  /**
+   * 사실상 인식 실패인지 판단합니다.
+   *
+   * law 나 original 이 비었다는 것만으로 판단하면 안 됩니다. 서버가 근거 조문을
+   * 빠뜨리거나 해당 조항을 못 찾아 인용문이 없을 수 있는데, 그건 판정이 된 것입니다.
+   * 8개가 전부 "확인필요" 이면서 인용된 원문이 하나도 없을 때만 못 읽은 것으로 봅니다.
+   */
+  const nothingRead =
+    result.clauses.every((c) => c.verdict === "확인필요") &&
+    result.clauses.every((c) => !c.original);
+  if (nothingRead) throw new ApiError("unreadable");
 
   return result;
 }

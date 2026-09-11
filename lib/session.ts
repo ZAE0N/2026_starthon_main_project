@@ -21,9 +21,10 @@
  */
 
 import { useSyncExternalStore } from "react";
-import type { FollowUp, InspectResult } from "../types";
+import type { FollowUp, InspectResult, Photo } from "../types";
 
 let current: InspectResult | null = null;
+let currentPhoto: Photo | null = null;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -65,7 +66,47 @@ export function setTitle(title: string) {
   emit();
 }
 
-/** 새로 촬영할 때 초기화 */
+/* ------------------------------------------------------------------ */
+/* 사진                                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 촬영·갤러리에서 얻은 사진을 담아둡니다.
+ *
+ *   // 촬영 화면 (camera.tsx)
+ *   const photo = await takePhoto();
+ *   if (!photo) return;            // 취소했거나 권한 거부
+ *   setCurrentPhoto(photo);
+ *   router.replace("/analyzing");
+ *
+ *   // 분석 화면 (analyzing.tsx)
+ *   const photo = getCurrentPhoto();
+ *   if (!photo) { router.replace("/camera"); return null; }
+ *   const result = await inspectContract(photo.base64);
+ *
+ * base64 는 수십만 자라 라우터 파라미터로 넘기면 잘립니다. 반드시 여기를 쓰세요.
+ */
+export function setCurrentPhoto(photo: Photo | null) {
+  currentPhoto = photo;
+  emit();
+}
+
+/** 훅 없이 꺼내기 */
+export function getCurrentPhoto(): Photo | null {
+  return currentPhoto;
+}
+
+/** 화면에서 쓰는 훅 */
+export function useCurrentPhoto(): Photo | null {
+  return useSyncExternalStore(subscribe, getCurrentPhoto, getCurrentPhoto);
+}
+
+/**
+ * 새로 촬영할 때 초기화.
+ * 사진까지 같이 비웁니다. 안 비우면 이전 계약서 사진이 다음 결과에 붙습니다.
+ */
 export function clearCurrent() {
-  setCurrent(null);
+  current = null;
+  currentPhoto = null;
+  emit();
 }

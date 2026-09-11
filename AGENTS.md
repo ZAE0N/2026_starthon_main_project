@@ -16,9 +16,10 @@ Claude Code는 자동으로 읽습니다. 다른 도구는 내용을 붙여넣�
 
 ## 스택
 
-- Expo (React Native) + TypeScript
-- 라우팅: **expo-router** (파일 기반)
+- Expo **SDK 57** (React Native) + TypeScript
+- 라우팅: **expo-router** (파일 기반). 화면은 저장소 루트의 `app/` 에 둡니다
 - 사진: expo-image-picker (촬영·갤러리 모두, 폰 기본 카메라 사용)
+  \+ expo-image-manipulator (해상도 축소)
 - 저장: expo-file-system + AsyncStorage (폰 안에만)
 - 서버: FastAPI (AI 호출 중계만, 사진 저장 안 함)
 
@@ -45,6 +46,8 @@ Claude Code는 자동으로 읽습니다. 다른 도구는 내용을 붙여넣�
 ## 절대 규칙
 
 1. **새 라이브러리 설치 금지.** 필요하면 팀 채팅에 먼저 올립니다.
+   (이미 합의된 예외 1건: `expo-image-manipulator` — 사진 해상도 축소용으로 설치되어 있습니다.
+   `lib/photo.ts` 안에서만 씁니다. 화면에서 직접 부르지 마세요.)
 2. **색·글자크기·여백 하드코딩 금지.** `constants/theme.ts` 에서 가져옵니다.
 3. **`types/index.ts` 형식을 그대로 씁니다.** 필드를 임의로 바꾸지 않습니다.
 4. **공통 파일은 전정현만 수정합니다.** (`types/`, `constants/`, `lib/`)
@@ -78,6 +81,48 @@ router.push(`/script?id=${clause.id}`);     // 말할 문장
 // 받는 쪽
 const { id } = useLocalSearchParams<{ id: string }>();
 const clause = findClause(result, id);
+```
+
+### 사진도 session 으로 넘깁니다
+
+base64 는 수십만 자라 라우터 파라미터로 넘기면 잘립니다.
+
+```ts
+// 촬영 화면 (camera.tsx)
+import { clearCurrent, setCurrentPhoto } from "../lib/session";
+const photo = await takePhoto();
+if (!photo) return;              // 취소했거나 권한 거부
+clearCurrent();                  // 이전 결과·사진 비우기
+setCurrentPhoto(photo);
+router.replace("/analyzing");
+
+// 분석 화면 (analyzing.tsx)
+import { getCurrentPhoto } from "../lib/session";
+const photo = getCurrentPhoto();
+if (!photo) { router.replace("/camera"); return null; }
+```
+
+### 분석이 끝나면 `saveResult` 의 **반환값**을 넣습니다
+
+서버 응답에는 사진 경로가 없습니다. `saveResult` 가 사진을 복사하고
+경로를 채워서 돌려주므로, **돌려받은 객체**를 session 에 넣어야 합니다.
+그냥 `setCurrent(result)` 하면 결과·기록함 화면에 사진이 영영 안 보입니다.
+
+```ts
+const result = await inspectContract(photo.base64);
+const saved  = await saveResult(result, photo.uri);   // ← 반환값
+setCurrent(saved);
+router.replace("/result");
+```
+
+### 기록함에서 과거 결과를 열 때
+
+결과 화면은 `useCurrent()` 만 봅니다. 기록함에서는 session 에 실어준 뒤 보냅니다.
+
+```ts
+// history.tsx
+setCurrent(item);
+router.push("/result");
 ```
 
 ---

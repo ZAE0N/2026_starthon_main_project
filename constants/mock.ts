@@ -88,6 +88,10 @@ const clauses: Clause[] = [
   },
 ];
 
+/**
+ * id 는 lib/api.ts 가 호출할 때마다 새 값으로 덮어씁니다.
+ * 고정해 두면 saveResult 가 같은 id 를 덮어써서 기록함에 1건만 쌓입니다.
+ */
 export const mockResult: InspectResult = {
   id: "mock-1",
   createdAt: "2026-09-11T16:21:00+09:00",
