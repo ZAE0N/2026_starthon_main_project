@@ -31,13 +31,14 @@
 ### 1. 파일 소유권
 - 화면 하나 = 파일 하나 = 담당자 한 명
 - 내 담당 파일 외에는 수정 금지
-- 공통 파일(theme, 타입 정의, API 호출부)은 [개발 담당자]만 수정
-- 공통 컴포넌트가 필요하면 직접 만들지 말고 [개발 담당자]에게 요청
+- 공통 파일(`types/`, `constants/`, `lib/`)은 **전정현만** 수정
+- 공통 컴포넌트가 필요하면 직접 만들지 말고 전정현에게 요청
 
 ### 2. 스타일
-- 색상, 글꼴 크기, 여백은 반드시 `styles/theme` 에서 가져다 사용
-- 하드코딩 금지 (`#1A2B4C`, `16px` 등 직접 입력 금지)
-- Tailwind 클래스는 사용 가능하되(모르면 안 써도 무방), 색상은 theme에 정의된 것만 사용
+- 색상, 글꼴 크기, 여백은 반드시 `constants/theme.ts` 에서 가져다 사용
+- 하드코딩 금지 (`#12294D`, `"16px"` 등 직접 입력 금지)
+- **Tailwind·CSS·className 은 쓰지 않습니다.** React Native 라서 동작하지 않습니다.
+  스타일은 `StyleSheet.create` 로 만들고 숫자를 씁니다 (`fontSize: 16`, `"16px"` 아님)
 
 ### 3. 라이브러리
 - 새 패키지 설치 금지
@@ -45,18 +46,27 @@
 - 설치했다면 package.json 변경을 PR 설명에 명시
 
 ### 4. AI(바이브 코딩) 사용 시
-요청할 때 아래 문장을 반드시 앞에 입력
 
-> 이 프로젝트는 Next.js(App Router) + TypeScript + Tailwind를 사용한다.(Tailwind를 모르신다면 빼도 상관없습니다.)  
-> 새 라이브러리를 추가하지 말고, 색상과 폰트는 theme 파일에서만 가져와라.  
-> 아래 타입 정의를 그대로 사용하고, 내가 지정한 파일 하나만 수정해라.
+**먼저 `AGENTS.md` 내용을 통째로 복사해서 AI에게 붙여넣습니다.**
+(Claude Code 를 쓴다면 자동으로 읽으므로 이 단계는 건너뛰어도 됩니다.)
 
-그 다음에 `types/` 의 타입 정의를 붙여넣는다.
+그 다음 이렇게 요청합니다.
+
+> 이 프로젝트는 **Expo(React Native) + TypeScript + expo-router** 를 사용한다.
+> 웹이 아니다. `div`·`span`·`button`·`className`·Tailwind·CSS 를 쓰지 말고
+> `View`·`Text`·`Pressable`·`StyleSheet` 를 써라.
+> 새 라이브러리를 추가하지 말고, 색과 글자 크기는 `constants/theme.ts` 에서만 가져와라.
+> `types/index.ts` 의 타입을 그대로 쓰고, 내가 지정한 파일 하나만 수정해라.
+
+그 다음에 `types/index.ts` 의 타입 정의를 붙여넣는다.
+
+> ⚠️ **Next.js 나 Tailwind 라고 알려주면 안 됩니다.** 웹 코드가 나와서 앱이 아예 실행되지 않습니다.
 
 ### 5. Git
-- 브랜치명: `feature/화면이름` (예: `feature/camera`, `feature/result`)
-- main에 직접 push 금지. PR만 사용
-- 머지는 [총 개발 담당자]만
+- 브랜치명: `feat/화면이름` (예: `feat/camera`, `feat/result`)
+- **기본 브랜치는 `develop` 입니다.** PR 은 `develop` 으로 보냅니다
+- `main` 에 직접 push 금지. `develop` 에도 직접 push 하지 않고 PR 만 사용
+- 머지는 전정현만
 - 매일 저녁 9시까지 각자 PR을 업로드(미완성이어도) 후 팀에게 통보
 - 커밋 메시지는 한글로 자유롭게
 

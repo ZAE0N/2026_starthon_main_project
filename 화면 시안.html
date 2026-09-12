@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>알바체크 — 화면 시안</title>
+<style>
+  :root{
+    --navy:#12294D;
+    --navy-soft:#33456B;
+    --mint:#00C2A8;
+    --mint-dark:#00A692;
+    --red:#E14A45;
+    --amber:#E8921B;
+    --green:#2BA05A;
+    --line:#E6E9EF;
+    --bg:#F4F6F9;
+    --gray:#8A93A3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:var(--bg);color:var(--navy);
+    padding:40px 24px 80px;-webkit-font-smoothing:antialiased;
+  }
+  .head{max-width:1200px;margin:0 auto 36px}
+  .head h1{font-size:26px;letter-spacing:-.02em}
+  .head p{color:var(--gray);font-size:14px;margin-top:8px;line-height:1.6}
+  .swatches{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+  .sw{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
+      border-radius:8px;padding:7px 11px;font-size:12px;color:var(--navy-soft)}
+  .dot{width:15px;height:15px;border-radius:4px}
+
+  .grid{max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;gap:36px;justify-content:flex-start}
+  .item{width:300px}
+  .cap{font-size:13px;color:var(--gray);margin-bottom:10px}
+  .cap b{color:var(--navy);font-weight:600}
+  .phone{
+    width:300px;height:620px;background:#fff;border-radius:28px;
+    border:1px solid var(--line);box-shadow:0 8px 28px rgba(18,41,77,.08);
+    overflow:hidden;display:flex;flex-direction:column;position:relative;
+  }
+  .bar{height:34px;display:flex;align-items:center;justify-content:space-between;
+       padding:0 18px;font-size:11px;color:var(--gray);flex:none}
+  .body{flex:1;overflow:hidden;padding:0 20px 20px;display:flex;flex-direction:column}
+
+  .btn{background:var(--mint);color:#fff;border:none;border-radius:12px;
+       padding:15px;font-size:15px;font-weight:600;width:100%;font-family:inherit}
+  .btn-line{background:#fff;color:var(--navy);border:1.5px solid var(--line);
+       border-radius:12px;padding:14px;font-size:14px;font-weight:600;width:100%;font-family:inherit}
+  .back{font-size:20px;color:var(--navy);padding:6px 0 10px}
+
+  /* 1 랜딩 */
+  .land{flex:1;display:flex;flex-direction:column;justify-content:center;padding-bottom:10px}
+  .land h2{font-size:26px;line-height:1.45;letter-spacing:-.03em;font-weight:700}
+  .land .sub{margin-top:16px;color:var(--navy-soft);font-size:14px;line-height:1.7}
+  .stat{margin-top:26px;border-left:3px solid var(--mint);padding-left:14px}
+  .stat .n{font-size:34px;font-weight:700;letter-spacing:-.03em}
+  .stat .t{font-size:12.5px;color:var(--gray);margin-top:4px;line-height:1.5}
+  .land-foot{margin-top:auto;padding-top:24px}
+  .land-foot .note{text-align:center;font-size:11.5px;color:var(--gray);margin-top:12px}
+
+  /* 2 촬영 */
+  .cam{flex:1;background:var(--navy);margin:0 -20px -20px;position:relative;
+       display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .frame{width:210px;height:290px;border-radius:6px;position:relative}
+  .frame i{position:absolute;width:26px;height:26px;border:2.5px solid var(--mint)}
+  .frame i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-radius:4px 0 0 0}
+  .frame i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-radius:0 4px 0 0}
+  .frame i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-radius:0 0 0 4px}
+  .frame i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 4px 0}
+  .cam .guide{color:#fff;font-size:14px;margin-top:26px;opacity:.9}
+  .cam .guide small{display:block;color:#B9C4D6;font-size:12px;margin-top:7px}
+  .shutter{position:absolute;bottom:34px;width:64px;height:64px;border-radius:50%;
+           background:#fff;border:5px solid rgba(255,255,255,.32)}
+
+  /* 3 분석 중 */
+  .load{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+  .spin{width:42px;height:42px;border-radius:50%;border:3px solid #EDF0F5;
+        border-top-color:var(--mint);animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .load h3{font-size:19px;margin-top:26px;letter-spacing:-.02em}
+  .load .fact{margin-top:44px;padding:0 8px}
+  .load .fact .n{font-size:30px;font-weight:700;color:var(--mint-dark);letter-spacing:-.03em}
+  .load .fact .t{font-size:13px;color:var(--gray);margin-top:8px;line-height:1.6}
+  .bars{display:flex;gap:5px;margin-top:34px}
+  .bars span{width:22px;height:3px;border-radius:2px;background:#E3E8EF}
+  .bars span.on{background:var(--mint)}
+
+  /* 4 결과 */
+  .rhead{padding:6px 0 16px}
+  .rhead h3{font-size:21px;letter-spacing:-.02em}
+  .rhead p{font-size:13px;color:var(--gray);margin-top:6px}
+  .cards{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:9px}
+  .card{border:1px solid var(--line);border-radius:12px;padding:13px 14px;display:flex;
+        align-items:center;gap:11px;background:#fff}
+  .card .bd{flex:1;min-width:0}
+  .card .lb{font-size:14.5px;font-weight:600}
+  .card .ds{font-size:12px;color:var(--gray);margin-top:3px;white-space:nowrap;
+            overflow:hidden;text-overflow:ellipsis}
+  .pill{font-size:11px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap}
+  .p-red{background:#FDECEC;color:var(--red)}
+  .p-amb{background:#FDF3E3;color:var(--amber)}
+  .p-grn{background:#E8F6EE;color:var(--green)}
+  .arrow{color:#C5CCD8;font-size:15px}
+  .disc{font-size:11px;color:var(--gray);text-align:center;line-height:1.5;margin-top:12px}
+
+  /* 5 조항 상세 */
+  .sec{margin-top:16px}
+  .sec .h{font-size:11.5px;color:var(--gray);margin-bottom:7px}
+  .quote{background:#F7F9FC;border-radius:10px;padding:13px;font-size:13.5px;
+         line-height:1.65;color:var(--navy-soft)}
+  .plain{font-size:15px;line-height:1.7;letter-spacing:-.01em}
+  .law{display:inline-block;background:#EEF1F6;color:var(--navy-soft);
+       font-size:12px;padding:6px 11px;border-radius:7px}
+
+  /* 6 말할 문장 */
+  .tone{display:flex;gap:8px;margin:4px 0 16px}
+  .tone b{flex:1;text-align:center;font-size:13px;padding:10px;border-radius:10px;
+          border:1.5px solid var(--line);color:var(--gray);font-weight:500}
+  .tone b.on{border-color:var(--mint);color:var(--mint-dark);background:#EAFAF7;font-weight:600}
+  .script{border:1.5px solid var(--navy);border-radius:14px;padding:18px;
+          font-size:16px;line-height:1.75;letter-spacing:-.01em}
+  .tip{font-size:12px;color:var(--gray);line-height:1.6;margin-top:14px}
+
+  /* 7 기록함 */
+  .rec{border:1px solid var(--line);border-radius:12px;padding:13px 14px;display:flex;gap:12px;align-items:center}
+  .thumb{width:44px;height:56px;border-radius:6px;background:#EDF0F5;flex:none}
+  .rec .d{font-size:12px;color:var(--gray);margin-top:4px}
+  .empty{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
+         text-align:center;color:var(--gray);font-size:13px;line-height:1.7}
+
+  /* 8 도움받기 */
+  .help{border:1px solid var(--line);border-radius:14px;padding:16px}
+  .help .nm{font-size:15px;font-weight:600}
+  .help .ds{font-size:12.5px;color:var(--gray);margin-top:5px;line-height:1.6}
+  .help .tel{font-size:19px;font-weight:700;color:var(--mint-dark);margin-top:12px;letter-spacing:-.02em}
+
+  /* 보정 노트 */
+  .fix{max-width:1200px;margin:0 auto 36px;background:#FFF8E6;border:1px solid #E8D9A8;
+       border-radius:12px;padding:20px 22px}
+  .fix h2{font-size:16px;color:#7A5B00;margin-bottom:6px}
+  .fix .lead{font-size:13px;color:#8A6D1F;line-height:1.7;margin-bottom:14px}
+  .fix .lead b{color:#A8341F}
+  .fix code{background:#fff;border:1px solid #E8D9A8;border-radius:4px;
+            padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>알바체크 — 화면 시안</h1>
+  <p>흰 바탕 + 네이비 기조, 포인트는 민트. 판정 3색(빨강·주황·초록)은 의미가 고정이라 포인트 컬러와 겹치지 않게 잡았습니다.<br>느낌 확인용이라 실제 코드는 나중에 다시 만듭니다.</p>
+  <div class="swatches">
+    <div class="sw"><span class="dot" style="background:#12294D"></span>네이비 #12294D</div>
+    <div class="sw"><span class="dot" style="background:#00C2A8"></span>민트 #00C2A8</div>
+    <div class="sw"><span class="dot" style="background:#E14A45"></span>위법소지 #E14A45</div>
+    <div class="sw"><span class="dot" style="background:#E8921B"></span>확인필요 #E8921B</div>
+    <div class="sw"><span class="dot" style="background:#2BA05A"></span>문제없음 #2BA05A</div>
+    <div class="sw"><span class="dot" style="background:#F4F6F9;border:1px solid #E6E9EF"></span>배경 #FFFFFF</div>
+  </div>
+</div>
+
+<div class="fix">
+  <h2>⚠ 시안대로 만들면 안 되는 곳이 6군데 있습니다</h2>
+  <p class="lead">
+    화면을 만들기 전에 <b>README 의 “시안과 다르게 만들어야 하는 곳”</b> 을 먼저 읽어주세요.<br>
+    레이아웃과 문장 톤은 이 시안을 따라가면 되고, 규칙은 <code>AGENTS.md</code> 가 기준입니다.
+  </p>
+</div>
+
+<div class="grid">
+
+  <!-- 1 랜딩 -->
+  <div class="item">
+    <div class="cap"><b>1. 랜딩</b> — 신우철</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="land">
+          <h2>서명하기 전<br>3분이면 됩니다</h2>
+          <p class="sub">계약서를 사진으로 찍으면<br>무엇이 잘못됐는지, 그리고<br>사장님께 뭐라고 말할지 알려드려요.</p>
+          <div class="stat">
+            <div class="n">89%</div>
+            <div class="t">부당한 일을 겪고도<br>아무 말 없이 넘어갑니다</div>
+          </div>
+        </div>
+        <div class="land-foot">
+          <button class="btn">계약서 촬영하기</button>
+          <div class="note">사진은 폰에만 저장되고 서버로 보내지 않아요</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 촬영 -->
+  <div class="item">
+    <div class="cap"><b>2. 촬영</b> — 나영웅</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body" style="padding-bottom:0">
+        <div class="back">←</div>
+        <div class="cam">
+          <div class="frame"><i></i><i></i><i></i><i></i></div>
+          <div class="guide">네모 안에 계약서를 맞춰주세요
+            <small>글자가 잘리지 않게 전체가 보이도록</small>
+          </div>
+          <div class="shutter"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 분석 중 -->
+  <div class="item">
+    <div class="cap"><b>3. 분석 중</b> — 나영웅 · 토스 스타일</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="load">
+          <div class="spin"></div>
+          <h3>계약서를 읽고 있어요</h3>
+          <div class="fact">
+            <div class="n">34.8%</div>
+            <div class="t">청년 알바생이 겪은 피해 1위는<br>근로계약서를 아예 쓰지 않는 것이었어요</div>
+          </div>
+          <div class="bars">
+            <span class="on"></span><span class="on"></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 진단 결과 -->
+  <div class="item">
+    <div class="cap"><b>4. 진단 결과</b> — 전정현</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="rhead">
+          <h3>2곳을 확인해보세요</h3>
+          <p>7개 항목 중 2개에 문제가 있어요</p>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <div class="bd"><div class="lb">시급</div><div class="ds">9,800원 · 최저임금보다 낮아요</div></div>
+            <span class="pill p-red">위법 소지</span><span class="arrow">›</span>
+          </div>
+          <div class="card">
+            <div class="bd"><div class="lb">수습 기간 감액</div><div class="ds">3개월 · 조건 확인이 필요해요</div></div>
+            <span class="pill p-amb">확인 필요</span><span class="arrow">›</span>
+          </div>
+          <div class="card">
+            <div class="bd"><div class="lb">근로시간</div><div class="ds">주 20시간</div></div>
+            <span class="pill p-grn">문제없음</span><span class="arrow">›</span>
+          </div>
+          <div class="card">
+            <div class="bd"><div class="lb">휴게시간</div><div class="ds">4시간당 30분</div></div>
+            <span class="pill p-grn">문제없음</span><span class="arrow">›</span>
+          </div>
+          <div class="card">
+            <div class="bd"><div class="lb">주휴수당</div><div class="ds">명시됨</div></div>
+            <span class="pill p-grn">문제없음</span><span class="arrow">›</span>
+          </div>
+        </div>
+        <div class="disc">확정 판단이 아니에요. 최종 확인은<br>노무사나 고용노동부를 통해 하세요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 조항 상세 -->
+  <div class="item">
+    <div class="cap"><b>5. 조항 상세</b> — 정윤지</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="back">←</div>
+        <div style="display:flex;align-items:center;gap:9px">
+          <h3 style="font-size:21px;letter-spacing:-.02em">시급</h3>
+          <span class="pill p-red">위법 소지</span>
+        </div>
+        <div class="sec">
+          <div class="h">계약서에 적힌 내용</div>
+          <div class="quote">제3조(임금) 시간급 9,800원으로 하며, 수습기간 3개월간 90%를 지급한다.</div>
+        </div>
+        <div class="sec">
+          <div class="h">쉽게 말하면</div>
+          <div class="plain">2026년 최저임금보다 낮게 적혀 있어요. 수습이라도 최저임금의 90% 아래로는 줄 수 없고, 1년 미만 계약이면 감액 자체가 안 돼요.</div>
+        </div>
+        <div class="sec">
+          <div class="h">근거</div>
+          <div class="law">최저임금법 제6조</div>
+        </div>
+        <div style="margin-top:auto;padding-top:18px">
+          <button class="btn">사장님께 말할 문장 보기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 말할 문장 -->
+  <div class="item">
+    <div class="cap"><b>6. 말할 문장</b> — 정윤지 · 핵심 화면</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="back">←</div>
+        <h3 style="font-size:21px;letter-spacing:-.02em">이렇게 말해보세요</h3>
+        <p style="font-size:13px;color:var(--gray);margin:6px 0 18px">편한 세기를 골라서 그대로 읽으면 돼요</p>
+        <div class="tone"><b class="on">부드럽게</b><b>단단하게</b></div>
+        <div class="script">사장님, 제가 잘 몰라서 그런데 시급 부분만 한 번 확인 부탁드려도 될까요?</div>
+        <div class="tip">외우지 않아도 괜찮아요. 화면을 보면서 읽어도 됩니다.</div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+          <button class="btn">문장 복사하기</button>
+          <button class="btn-line">말 꺼내기 어려우면 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 기록함 -->
+  <div class="item">
+    <div class="cap"><b>7. 기록함</b> — 전정현</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="rhead" style="padding-top:14px">
+          <h3>내 계약서</h3>
+          <p>계약서를 돌려줘도 사본은 남아 있어요</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div class="rec">
+            <div class="thumb"></div>
+            <div class="bd">
+              <div class="lb" style="font-size:14.5px;font-weight:600">○○편의점</div>
+              <div class="d">2026. 9. 11. 오후 4:21</div>
+            </div>
+            <span class="pill p-red">2곳</span>
+          </div>
+          <div class="rec">
+            <div class="thumb"></div>
+            <div class="bd">
+              <div class="lb" style="font-size:14.5px;font-weight:600">△△카페</div>
+              <div class="d">2026. 8. 2. 오후 7:05</div>
+            </div>
+            <span class="pill p-grn">이상 없음</span>
+          </div>
+        </div>
+        <div style="margin-top:auto"><button class="btn-line">새 계약서 촬영</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8 도움받기 -->
+  <div class="item">
+    <div class="cap"><b>8. 도움받기</b> — 신우철</div>
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="back">←</div>
+        <h3 style="font-size:21px;letter-spacing:-.02em">혼자 해결이<br>어려울 때</h3>
+        <p style="font-size:13px;color:var(--gray);margin:10px 0 20px;line-height:1.6">전화하면 노무사가 무료로 상담해줘요.<br>기록해둔 계약서를 보여주면 더 빨라요.</p>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div class="help">
+            <div class="nm">청소년근로권익센터</div>
+            <div class="ds">만 24세 이하 무료 상담 · 평일 9시~18시</div>
+            <div class="tel">1644-3119</div>
+          </div>
+          <div class="help">
+            <div class="nm">고용노동부 고객상담센터</div>
+            <div class="ds">임금체불·부당해고 신고 안내</div>
+            <div class="tel">1350</div>
+          </div>
+        </div>
+        <div style="margin-top:auto"><button class="btn-line">내 기록 보기</button></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
