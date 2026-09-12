@@ -19,14 +19,7 @@ export default function HelpScreen() {
         
         {/* 상단 헤더 영역 */}
         <View style={styles.header}>
-          <Pressable
-            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-            onPress={() => router.back()}
-            hitSlop={8}
-          >
-            <Text style={styles.backButtonText}>← 뒤로가기</Text>
-          </Pressable>
-          <Text style={styles.title}>도움받기</Text>
+          
           <Text style={styles.subtitle}>
             혼자 해결하기 어려운 근로권익 침해 문제,{'\n'}전문 무료 상담센터에서 도움을 받을 수 있어요.
           </Text>

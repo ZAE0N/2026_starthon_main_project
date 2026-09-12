@@ -16,7 +16,7 @@ export default function HomeScreen() {
           <Text style={styles.badge}>알바 권익 진단 툴</Text>
           <Text style={styles.title}>내 근로계약서,{'\n'}문제없을까요?</Text>
           <Text style={styles.subtitle}>
-            사진 한 장만 찍으면 AI가 위법 조항을 3초 만에 찾아 진단해 드려요.
+            사진 한 장만 찍으면 AI가 위법 조항을 찾아 진단해 드려요.
           </Text>
         </View>
 
