@@ -1,90 +1,176 @@
-/**
- * 도움받기 화면. 담당: 신우철
- *
- * 할 일 (화면 시안 8번)
- *  - 카드 디자인 다듬기
- *  - 전화번호를 크게, 누르면 바로 전화 걸리게 (Linking.openURL(`tel:...`))
- *
- * 전화번호와 운영시간은 반드시 copy.help 에서 가져옵니다. 직접 쓰지 마세요.
- */
+import React from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, SafeAreaView, Linking } from 'react-native';
+import { useRouter } from 'expo-router';
+import { colors, space, radius, font, weight, screenPadding, minTouch } from '../constants/theme';
+import { copy } from '../constants/copy';
 
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { copy } from "../constants/copy";
-import {
-  colors,
-  font,
-  minTouch,
-  radius,
-  screenPadding,
-  space,
-  weight,
-} from "../constants/theme";
+export default function HelpScreen() {
+  const router = useRouter();
 
-export default function Help() {
+  const handlePressCall = (tel: string) => {
+    // 공백 및 특수문자 제거 후 전화 걸기 연결
+    const cleanedTel = tel.replace(/[^0-9]/g, '');
+    Linking.openURL(`tel:${cleanedTel}`);
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <View>
-        <Text style={styles.title}>혼자 해결이{"\n"}어려울 때</Text>
-        <Text style={styles.sub}>
-          전화하면 노무사가 무료로 상담해줘요.{"\n"}
-          기록해둔 계약서를 보여주면 더 빨라요.
-        </Text>
-      </View>
-
-      <View style={styles.list}>
-        {copy.help.map((h) => (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        
+        {/* 상단 헤더 영역 */}
+        <View style={styles.header}>
           <Pressable
-            key={h.tel}
-            style={styles.card}
-            onPress={() => Linking.openURL(`tel:${h.tel}`)}
+            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+            onPress={() => router.back()}
+            hitSlop={8}
           >
-            <Text style={styles.name}>{h.name}</Text>
-            <Text style={styles.desc}>{h.desc}</Text>
-            <Text style={styles.tel}>{h.tel}</Text>
+            <Text style={styles.backButtonText}>← 뒤로가기</Text>
           </Pressable>
-        ))}
-      </View>
-    </ScrollView>
+          <Text style={styles.title}>도움받기</Text>
+          <Text style={styles.subtitle}>
+            혼자 해결하기 어려운 근로권익 침해 문제,{'\n'}전문 무료 상담센터에서 도움을 받을 수 있어요.
+          </Text>
+        </View>
+
+        {/* copy.help 데이터 배열을 map으로 돌려 카드 생성 */}
+        <View style={styles.cardList}>
+          {copy.help.map((item, index) => (
+            <View key={index} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.centerName}>{item.name}</Text>
+                <Text style={styles.centerDesc}>{item.desc}</Text>
+              </View>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.callButton,
+                  pressed && styles.callButtonPressed,
+                ]}
+                onPress={() => handlePressCall(item.tel)}
+              >
+                {/* 대비 통과를 위해 colors.mintText 사용 */}
+                <Text style={styles.callButtonText}>전화 상담 ({item.tel})</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
+        {/* 내 기록 보기 바로가기 버튼 */}
+        <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.historyLinkButton,
+              pressed && styles.historyLinkButtonPressed,
+            ]}
+            onPress={() => router.push('/history')}
+          >
+            <Text style={styles.historyLinkText}>내 진단 기록 보러가기 →</Text>
+          </Pressable>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { padding: screenPadding, backgroundColor: colors.bg, gap: space.lg },
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  container: {
+    paddingHorizontal: screenPadding,
+    paddingTop: space.md,
+    paddingBottom: space.xl,
+  },
+  header: {
+    marginBottom: space.lg,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: space.xs,
+    paddingRight: space.sm,
+    marginBottom: space.sm,
+    minHeight: minTouch,
+    justifyContent: 'center',
+  },
+  backButtonPressed: {
+    opacity: 0.6,
+  },
+  backButtonText: {
+    fontSize: font.body,
+    color: colors.navySoft,
+    fontWeight: weight.medium,
+  },
   title: {
+    fontSize: font.h1,
+    fontWeight: weight.bold,
+    color: colors.navy,
+    marginBottom: space.xs,
+  },
+  subtitle: {
+    fontSize: font.body,
+    color: colors.gray,
+    lineHeight: 22,
+  },
+  cardList: {
+    gap: space.md,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: space.md,
+  },
+  cardHeader: {
+    marginBottom: space.md,
+  },
+  centerName: {
     fontSize: font.h2,
     fontWeight: weight.bold,
     color: colors.navy,
-    lineHeight: 30,
+    marginBottom: space.xs,
   },
-  sub: {
-    marginTop: space.sm,
+  centerDesc: {
     fontSize: font.small,
     color: colors.gray,
-    lineHeight: 21,
+    lineHeight: 18,
   },
-  list: { gap: space.sm },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    padding: space.md,
+  callButton: {
+    backgroundColor: colors.white,
+    borderColor: colors.mint,
+    borderWidth: 1.5,
+    paddingVertical: space.sm + 2,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
     minHeight: minTouch,
   },
-  name: {
+  callButtonPressed: {
+    backgroundColor: colors.mintBg,
+  },
+  callButtonText: {
+    fontSize: font.body,
+    fontWeight: weight.bold,
+    color: colors.mintText, // 흰 배경 대비율 기준 충족
+  },
+  footer: {
+    marginTop: space.xl,
+    alignItems: 'center',
+  },
+  historyLinkButton: {
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    minHeight: minTouch,
+    justifyContent: 'center',
+  },
+  historyLinkButtonPressed: {
+    opacity: 0.6,
+  },
+  historyLinkText: {
     fontSize: font.body,
     fontWeight: weight.semibold,
     color: colors.navy,
-  },
-  desc: {
-    marginTop: 5,
-    fontSize: font.small,
-    color: colors.gray,
-    lineHeight: 20,
-  },
-  tel: {
-    marginTop: space.sm,
-    fontSize: font.h2,
-    fontWeight: weight.bold,
-    color: colors.mintText,
   },
 });

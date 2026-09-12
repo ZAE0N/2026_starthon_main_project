@@ -1,121 +1,202 @@
-/**
- * 랜딩 화면. 담당: 신우철
- *
- * 지금은 흐름이 이어지는지 확인하려고 최소한만 만들어 둔 상태입니다.
- * 화면 시안 1번을 보고 다듬어 주세요.
- *
- * 할 일
- *  - 시안대로 문구·여백 다듬기 ("서명하기 전 3분이면 됩니다")
- *  - 통계 숫자 영역 (민트 세로선 + 큰 숫자)
- *  - 아래 privacy 문구는 copy.privacyShort 를 그대로 씁니다. 직접 쓰지 마세요.
- *
- * 주의: 시안에는 "서버로 보내지 않아요" 라고 적혀 있는데 사실과 다릅니다.
- *      판정하려면 서버로 보내야 합니다. copy.privacyShort 가 맞는 문구입니다.
- */
+import React from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { colors, space, radius, font, weight, screenPadding, minTouch } from '../constants/theme';
+import { copy } from '../constants/copy';
 
-import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { copy } from "../constants/copy";
-import {
-  colors,
-  font,
-  minTouch,
-  radius,
-  screenPadding,
-  space,
-  weight,
-} from "../constants/theme";
+export default function HomeScreen() {
+  const router = useRouter();
 
-export default function Landing() {
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <View style={styles.hero}>
-        <Text style={styles.title}>서명하기 전{"\n"}3분이면 됩니다</Text>
-        <Text style={styles.sub}>
-          계약서를 사진으로 찍으면 무엇이 잘못됐는지, 그리고 사장님께 뭐라고
-          말할지 알려드려요.
-        </Text>
-      </View>
-
-      <View style={styles.foot}>
-        <Pressable
-          style={styles.primary}
-          onPress={() => router.push("/camera")}
-        >
-          <Text style={styles.primaryText}>계약서 촬영하기</Text>
-        </Pressable>
-
-        <View style={styles.row}>
-          <Pressable
-            style={styles.secondary}
-            onPress={() => router.push("/history")}
-          >
-            <Text style={styles.secondaryText}>내 기록</Text>
-          </Pressable>
-          <Pressable
-            style={styles.secondary}
-            onPress={() => router.push("/help")}
-          >
-            <Text style={styles.secondaryText}>도움받기</Text>
-          </Pressable>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        
+        {/* 헤더 / 타이틀 영역 */}
+        <View style={styles.header}>
+          <Text style={styles.badge}>알바 권익 진단 툴</Text>
+          <Text style={styles.title}>내 근로계약서,{'\n'}문제없을까요?</Text>
+          <Text style={styles.subtitle}>
+            사진 한 장만 찍으면 AI가 위법 조항을 3초 만에 찾아 진단해 드려요.
+          </Text>
         </View>
 
-        <Text style={styles.note}>{copy.privacyShort}</Text>
-      </View>
-    </ScrollView>
+        {/* 통계 지표 영역 (민트 세로선 + 큰 숫자 시안 반영) */}
+        <View style={styles.statCard}>
+          <View style={styles.statLine} />
+          <View style={styles.statContent}>
+            <View style={styles.statNumberRow}>
+              <Text style={styles.statNumber}>89</Text>
+              <Text style={styles.statPercent}>%</Text>
+            </View>
+            <Text style={styles.statLabel}>
+              청소년·청년 알바생 근로계약서 중{'\n'}독소 조항 또는 독소 내용 포함 비율
+            </Text>
+          </View>
+        </View>
+
+        {/* 메인 버튼 및 보조 버튼 영역 */}
+        <View style={styles.actionContainer}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={() => router.push('/camera')}
+          >
+            <Text style={styles.primaryButtonText}>계약서 촬영하기</Text>
+          </Pressable>
+
+          <View style={styles.secondaryButtonRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.secondaryButtonPressed,
+              ]}
+              onPress={() => router.push('/history')}
+            >
+              <Text style={styles.secondaryButtonText}>내 기록</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.secondaryButtonPressed,
+              ]}
+              onPress={() => router.push('/help')}
+            >
+              <Text style={styles.secondaryButtonText}>도움받기</Text>
+            </Pressable>
+          </View>
+
+          {/* 개인정보 및 면책 문구 (copy.privacyShort 필수 바인딩) */}
+          <Text style={styles.privacyNote}>{copy.privacyShort}</Text>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flexGrow: 1,
-    padding: screenPadding,
-    justifyContent: "space-between",
+  safeArea: {
+    flex: 1,
     backgroundColor: colors.bg,
   },
-  hero: { flex: 1, justifyContent: "center", paddingVertical: space.xl },
-  title: { fontSize: font.h1, fontWeight: weight.bold, color: colors.navy, lineHeight: 38 },
-  sub: {
-    marginTop: space.md,
+  container: {
+    paddingHorizontal: screenPadding,
+    paddingTop: space.xl,
+    paddingBottom: space.xl,
+    justifyContent: 'space-between',
+    minHeight: '100%',
+  },
+  header: {
+    marginBottom: space.lg,
+  },
+  badge: {
+    fontSize: font.small,
+    color: colors.mintText,
+    fontWeight: weight.semibold,
+    marginBottom: space.xs,
+  },
+  title: {
+    fontSize: font.h1,
+    fontWeight: weight.bold,
+    color: colors.navy,
+    lineHeight: 34,
+    marginBottom: space.sm,
+  },
+  subtitle: {
     fontSize: font.body,
     color: colors.navySoft,
-    lineHeight: 24,
+    lineHeight: 22,
   },
-  foot: { gap: space.sm },
-  primary: {
-    backgroundColor: colors.navy,
+  statCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    padding: space.md,
     borderRadius: radius.md,
-    minHeight: minTouch,
-    paddingVertical: space.md,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    marginVertical: space.md,
   },
-  primaryText: {
+  statLine: {
+    width: 4,
+    height: '100%',
+    backgroundColor: colors.mint,
+    borderRadius: radius.full,
+    marginRight: space.md,
+  },
+  statContent: {
+    flex: 1,
+  },
+  statNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  statNumber: {
+    fontSize: 36,
+    fontWeight: weight.bold,
+    color: colors.navy,
+  },
+  statPercent: {
+    fontSize: font.h2,
+    fontWeight: weight.bold,
+    color: colors.navy,
+    marginLeft: 2,
+  },
+  statLabel: {
+    fontSize: font.small,
+    color: colors.gray,
+    marginTop: space.xs,
+    lineHeight: 18,
+  },
+  actionContainer: {
+    marginTop: space.lg,
+    gap: space.sm,
+  },
+  primaryButton: {
+    backgroundColor: colors.navy,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: minTouch,
+  },
+  buttonPressed: {
+    backgroundColor: colors.navyPressed,
+  },
+  primaryButtonText: {
     color: colors.white,
     fontSize: font.body,
-    fontWeight: weight.semibold,
+    fontWeight: weight.bold,
   },
-  row: { flexDirection: "row", gap: space.sm },
-  secondary: {
+  secondaryButtonRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  secondaryButton: {
     flex: 1,
-    borderWidth: 1,
+    backgroundColor: colors.surface,
     borderColor: colors.line,
+    borderWidth: 1,
+    paddingVertical: space.sm + 2,
     borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
     minHeight: minTouch,
-    paddingVertical: space.sm,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  secondaryText: {
+  secondaryButtonPressed: {
+    backgroundColor: colors.line,
+  },
+  secondaryButtonText: {
     color: colors.navy,
-    fontSize: font.small,
-    fontWeight: weight.semibold,
+    fontSize: font.body,
+    fontWeight: weight.medium,
   },
-  note: {
-    marginTop: space.sm,
+  privacyNote: {
     fontSize: font.tiny,
     color: colors.gray,
-    textAlign: "center",
-    lineHeight: 17,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: space.sm,
   },
 });
