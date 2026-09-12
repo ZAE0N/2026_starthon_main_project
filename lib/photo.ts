@@ -105,3 +105,40 @@ export async function pickPhoto(): Promise<Photo | null> {
   if (!perm.granted) return null;
   return toPhoto(await ImagePicker.launchImageLibraryAsync(OPTIONS));
 }
+
+/** 어디서 사진을 가져오는지. getPhotoPermission 에서 씁니다. */
+export type PhotoSource = "camera" | "library";
+
+/**
+ * 권한이 켜져 있는지만 확인합니다. **새로 요청하지 않습니다.**
+ *
+ * takePhoto / pickPhoto 는 취소와 권한 거부를 모두 null 로 돌려줍니다.
+ * 둘을 구분하지 않으면 안내를 제대로 띄울 수 없습니다.
+ *   - 취소한 사람에게 "권한이 필요해요" 를 띄우면 더 헷갈립니다.
+ *   - 거부한 사람에게 아무것도 안 띄우면 버튼이 고장난 것처럼 보입니다.
+ *
+ * 그래서 null 을 받은 뒤에 이 함수로 한 번 더 확인하는 식으로 씁니다.
+ *
+ *   const photo = await takePhoto();
+ *   if (!photo) {
+ *     if (!(await getPhotoPermission("camera"))) {
+ *       // copy.errors.permission 안내 + Linking.openSettings()
+ *     }
+ *     return;                       // 아니면 그냥 취소한 것
+ *   }
+ *
+ * 상태를 못 읽으면 true 를 돌려줍니다. 권한 안내를 잘못 띄우는 쪽이 더 나쁩니다.
+ */
+export async function getPhotoPermission(
+  source: PhotoSource
+): Promise<boolean> {
+  try {
+    const perm =
+      source === "camera"
+        ? await ImagePicker.getCameraPermissionsAsync()
+        : await ImagePicker.getMediaLibraryPermissionsAsync();
+    return perm.granted;
+  } catch {
+    return true;
+  }
+}
