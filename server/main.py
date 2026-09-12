@@ -43,7 +43,7 @@ def _startup() -> None:
         log.warning("OPENAI_API_KEY 가 비어 있습니다. /inspect 가 전부 실패합니다.")
     if not os.getenv("APP_TOKEN", "").strip():
         log.warning("APP_TOKEN 이 비어 있어 토큰 검사를 건너뜁니다. 배포 전에 채우세요.")
-    log.info("기준 법령 %s / 모델 %s", laws.based_on(), os.getenv("OPENAI_MODEL", "gpt-5.5"))
+    log.info("기준 법령 %s / 모델 %s", laws.based_on(), os.getenv("OPENAI_MODEL", "gpt-5.4"))
 
 
 @app.exception_handler(RequestValidationError)

@@ -196,7 +196,13 @@ OUTPUT_SHAPE = """{
 - facts 는 계약서에서 읽은 사실만 적습니다. 판단하지 말고, 안 적혀 있으면 null 이나 "unknown".
   simpleLabor 는 주방보조·조리보조·청소·주유·배달·경비·단순포장운반 같은 단순노무면 "yes",
   사무·판매·상담처럼 분명히 아니면 "no", 직종을 알 수 없으면 "unknown".
-- wage 와 probation 항목은 scripts 를 항상 채웁니다. 문제없어 보여도 채우세요."""
+- wage 와 probation 항목은 scripts 를 항상 채웁니다. 문제없어 보여도 채우세요.
+
+[길이 제한] — 넘기면 화면에서 잘리고, 응답도 느려집니다
+- original: 문제가 되는 대목만 80자 이내로. 계약서를 통째로 옮기지 마세요.
+- plain: 100자 이내, 두 문장까지.
+- scripts.soft / firm: 각각 80자 이내 한두 문장.
+- 판정이 "문제없음" 인 항목은 original 도 짧게(또는 빈 문자열), scripts 는 빈 문자열."""
 
 
 def _client() -> OpenAI:
@@ -212,8 +218,12 @@ def _client() -> OpenAI:
     )
 
 
+#: temperature 를 거부한 모델 이름. 기동 중에만 유지됩니다.
+_NO_TEMPERATURE: set[str] = set()
+
+
 def _ask_openai(image_base64: str) -> dict[str, Any]:
-    model = os.getenv("OPENAI_MODEL", "gpt-5.5").strip()
+    model = os.getenv("OPENAI_MODEL", "gpt-5.4").strip()
 
     user_text = (
         f"{laws.rules_block()}\n\n"
@@ -248,8 +258,10 @@ def _ask_openai(image_base64: str) -> dict[str, Any]:
         return _client().chat.completions.create(**kwargs, **extra)
 
     try:
+        # 한 번 거부한 모델은 기억해 둡니다. 안 그러면 요청마다 400 을 한 번씩 받고
+        # 버리는 왕복이 생깁니다. (시연 중에는 그 0.5초도 아깝습니다)
         try:
-            res = call(with_temperature=True)
+            res = call(with_temperature=model not in _NO_TEMPERATURE)
         except Exception as e:
             # 일부 모델은 temperature 를 아예 못 받습니다.
             #   "Unsupported value: 'temperature' does not support 0 with this model"
@@ -258,7 +270,8 @@ def _ask_openai(image_base64: str) -> dict[str, Any]:
             # laws.json 기준으로 다시 계산하므로 핵심 판정은 흔들리지 않습니다.
             if "temperature" not in str(e):
                 raise
-            log.warning("%s 는 temperature 를 받지 않아 기본값으로 재시도합니다.", model)
+            log.warning("%s 는 temperature 를 받지 않습니다. 이후로는 빼고 보냅니다.", model)
+            _NO_TEMPERATURE.add(model)
             res = call(with_temperature=False)
     except Exception as e:  # 네트워크·인증·모델명 오류 전부
         # 사진은 절대 로그에 남기지 않습니다. 예외 메시지만 남깁니다.
