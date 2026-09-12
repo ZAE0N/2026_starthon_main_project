@@ -213,7 +213,7 @@ def _client() -> OpenAI:
 
 
 def _ask_openai(image_base64: str) -> dict[str, Any]:
-    model = os.getenv("OPENAI_MODEL", "gpt-4o").strip()
+    model = os.getenv("OPENAI_MODEL", "gpt-5.5").strip()
 
     user_text = (
         f"{laws.rules_block()}\n\n"
@@ -221,28 +221,45 @@ def _ask_openai(image_base64: str) -> dict[str, Any]:
         "이 계약서 사진을 위 기준으로 검토해서 JSON 만 출력하세요."
     )
 
-    try:
-        res = _client().chat.completions.create(
-            model=model,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": user_text},
                 {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user_text},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}",
-                                "detail": "high",
-                            },
-                        },
-                    ],
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{image_base64}",
+                        "detail": "high",
+                    },
                 },
             ],
-        )
+        },
+    ]
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "response_format": {"type": "json_object"},
+        "messages": messages,
+    }
+
+    def call(with_temperature: bool):
+        extra = {"temperature": 0} if with_temperature else {}
+        return _client().chat.completions.create(**kwargs, **extra)
+
+    try:
+        try:
+            res = call(with_temperature=True)
+        except Exception as e:
+            # 일부 모델은 temperature 를 아예 못 받습니다.
+            #   "Unsupported value: 'temperature' does not support 0 with this model"
+            # 이 경우 temperature 를 빼고 한 번만 다시 시도합니다. 빼면 같은 사진에서
+            # 결과가 조금씩 달라질 수 있는데, 최저임금·수습 감액 판정은 recompute() 가
+            # laws.json 기준으로 다시 계산하므로 핵심 판정은 흔들리지 않습니다.
+            if "temperature" not in str(e):
+                raise
+            log.warning("%s 는 temperature 를 받지 않아 기본값으로 재시도합니다.", model)
+            res = call(with_temperature=False)
     except Exception as e:  # 네트워크·인증·모델명 오류 전부
         # 사진은 절대 로그에 남기지 않습니다. 예외 메시지만 남깁니다.
         log.error("openai 호출 실패: %s: %s", type(e).__name__, e)
