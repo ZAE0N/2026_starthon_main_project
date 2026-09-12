@@ -81,7 +81,24 @@ export async function saveResult(
   const saved: InspectResult = { ...result, imagePath };
   const history = await loadHistory();
   const next = [saved, ...history.filter((r) => r.id !== saved.id)];
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+
+  /**
+   * 기록함에 남기지 못해도 판정 결과는 돌려줍니다.
+   *
+   * 여기서 throw 하면 analyzing.tsx 의 catch 가 그걸 "server" 에러로 받아서
+   * 이미 분석이 끝난 계약서에 "지금은 분석할 수 없어요" 를 띄웁니다.
+   * 사용자는 이유도 모르고, AI 호출 비용도 이미 나갔습니다.
+   *
+   * 저장 실패는 저장공간 부족처럼 드문 경우입니다. 기록이 안 남는 것보다
+   * 판정 결과를 잃는 쪽이 훨씬 나쁩니다. 위의 savePhoto 도 같은 이유로
+   * 실패를 삼키고 빈 경로를 돌려줍니다.
+   */
+  try {
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+  } catch (e) {
+    console.warn("[storage] 기록함 저장 실패. 판정 결과는 그대로 보여줍니다.", e);
+  }
+
   return saved;
 }
 
