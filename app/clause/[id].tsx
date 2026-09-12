@@ -55,7 +55,7 @@ export default function ClauseDetail() {
    * 아래 조건은 데이터 타입에 맞게 유지해야 합니다.
    */
   const canShowScript =
-    hasScript && verdict.label !== "문제없음";
+    hasScript && clause.verdict !== "문제없음";
 
   return (
     <ScrollView contentContainerStyle={styles.screen}>
