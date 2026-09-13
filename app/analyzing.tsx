@@ -14,14 +14,21 @@
  *     법 조문을 돌아가며 보여줍니다. 출처가 확보되면 FACTS 배열에 넣으면 됩니다.
  *   - 항목 개수는 CHECK_ORDER 에서 세서 씁니다. 숫자를 적어두면 항목이 늘거나
  *     줄었을 때 화면 문구가 거짓이 됩니다. (시안의 "7개 항목" 이 그렇게 틀렸습니다)
+ *
+ * 정보 카드 3장
+ *   손으로 좌우로 넘길 수 있습니다. 한 번 넘기면 자동 전환은 멈춥니다.
+ *   (읽는 중에 저절로 넘어가면 오히려 불편합니다)
+ *   목 모드는 분석이 2초에 끝나서 자동 전환이 한 번도 일어나지 않습니다.
+ *   그래서 nextStart 로 화면이 열릴 때마다 다른 카드부터 시작합니다.
+ *   자동 전환을 눈으로 보려면 FACT_INTERVAL 을 600 정도로 잠깐 낮추세요.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import {
   ActivityIndicator,
-  Animated,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -77,16 +84,46 @@ const STAGES = [
 /** 이 초가 지나면 제목을 바꿉니다. 타임아웃은 45초입니다. */
 const SLOW_AFTER = 20;
 
-/** 정보 카드가 바뀌는 간격 (밀리초) */
-const FACT_INTERVAL = 4500;
+/**
+ * 정보 카드가 바뀌는 간격 (밀리초).
+ * 한 장을 읽는 데 3초쯤 걸리므로 그보다 조금 길게 잡았습니다.
+ */
+const FACT_INTERVAL = 3500;
+
+/**
+ * 다음에 이 화면이 열릴 때 먼저 보여줄 카드 번호.
+ *
+ * 분석이 몇 초 만에 끝나면 카드가 한 번도 안 바뀝니다. 그때 항상 같은 카드만
+ * 나오면 세 장을 넣은 의미가 없으므로, 화면이 열릴 때마다 다음 카드부터
+ * 시작하게 합니다. (앱을 완전히 껐다 켜면 다시 0번부터입니다)
+ */
+let nextStart = 0;
 
 export default function Analyzing() {
   const [errorKind, setErrorKind] = useState<ApiErrorKind | null>(null);
   /** 다시 시도할 때 분석을 한 번 더 돌리기 위한 값 */
   const [attempt, setAttempt] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  /** 지금 보이는 카드의 자리 번호 (0부터, cards 기준) */
   const [factIndex, setFactIndex] = useState(0);
-  const fade = useRef(new Animated.Value(1)).current;
+  /** 손으로 한 번 넘겼는지. 넘긴 뒤에는 자동 전환을 멈춥니다 */
+  const [manual, setManual] = useState(false);
+  /** 카드 한 장의 너비. 화면 폭을 재서 넣습니다 (페이지 단위로 넘기려면 필요) */
+  const [cardWidth, setCardWidth] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  /**
+   * 이번에 먼저 보여줄 카드.
+   * 스크롤 위치를 옮기는 대신 카드 순서를 돌려서 넣습니다. 그러면 항상 맨
+   * 왼쪽에서 시작하므로 처음 위치를 맞추는 코드가 필요 없습니다.
+   */
+  const startIndex = useRef(nextStart).current;
+  const cards = FACTS.map((_, k) => FACTS[(startIndex + k) % FACTS.length]);
+
+  /* 다음에 이 화면이 열릴 때는 그다음 카드부터 보이게 해 둡니다 */
+  useEffect(() => {
+    nextStart = (nextStart + 1) % FACTS.length;
+  }, []);
 
   /* 분석 — 이 흐름은 건드리지 않습니다 */
   useEffect(() => {
@@ -127,27 +164,18 @@ export default function Analyzing() {
     return () => clearInterval(timer);
   }, [errorKind, attempt]);
 
-  /* 정보 카드 넘기기 */
+  /* 정보 카드 자동 전환 — 손으로 넘긴 뒤에는 멈춥니다 */
   useEffect(() => {
-    if (errorKind) return;
+    if (errorKind || manual || cardWidth === 0) return;
 
-    const timer = setInterval(() => {
-      Animated.timing(fade, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setFactIndex((i) => (i + 1) % FACTS.length);
-        Animated.timing(fade, {
-          toValue: 1,
-          duration: 260,
-          useNativeDriver: true,
-        }).start();
-      });
+    const timer = setTimeout(() => {
+      const next = (factIndex + 1) % cards.length;
+      setFactIndex(next);
+      scrollRef.current?.scrollTo({ x: next * cardWidth, animated: true });
     }, FACT_INTERVAL);
 
-    return () => clearInterval(timer);
-  }, [errorKind, attempt, fade]);
+    return () => clearTimeout(timer);
+  }, [errorKind, manual, cardWidth, attempt, factIndex, cards.length]);
 
   /* ---------------------------------------------------------------- */
   /* 에러 화면                                                          */
@@ -200,7 +228,7 @@ export default function Analyzing() {
               setErrorKind(null);
               setElapsed(0);
               setFactIndex(0);
-              fade.setValue(1);
+              setManual(false);
               setAttempt((n) => n + 1);
             }}
             accessibilityRole="button"
@@ -233,7 +261,6 @@ export default function Analyzing() {
 
   const slow = elapsed >= SLOW_AFTER;
   const stage = lastPassed(elapsed);
-  const fact = FACTS[factIndex];
 
   return (
     <View style={styles.screen}>
@@ -247,11 +274,44 @@ export default function Analyzing() {
           {slow ? "거의 다 됐어요. 화면을 닫지 말고 기다려 주세요." : STAGES[stage].label}
         </Text>
 
-        <Animated.View style={[styles.fact, { opacity: fade }]}>
-          <Text style={styles.factValue}>{fact.value}</Text>
-          <Text style={styles.factText}>{fact.text}</Text>
-          <Text style={styles.factLaw}>{fact.law}</Text>
-        </Animated.View>
+        <View
+          style={styles.factArea}
+          onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
+        >
+          {cardWidth > 0 && (
+            <ScrollView
+              ref={scrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScrollBeginDrag={() => setManual(true)}
+              onMomentumScrollEnd={(e) => {
+                const raw = Math.round(e.nativeEvent.contentOffset.x / cardWidth);
+                setFactIndex(Math.min(cards.length - 1, Math.max(0, raw)));
+              }}
+            >
+              {cards.map((f) => (
+                <View
+                  key={f.law}
+                  style={[styles.factPage, { width: cardWidth }]}
+                >
+                  <Text style={styles.factValue}>{f.value}</Text>
+                  <Text style={styles.factText}>{f.text}</Text>
+                  <Text style={styles.factLaw}>{f.law}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        <View style={styles.dots}>
+          {cards.map((f, i) => (
+            <View
+              key={f.law}
+              style={[styles.dot, i === factIndex && styles.dotOn]}
+            />
+          ))}
+        </View>
 
         <View
           style={styles.bars}
@@ -305,11 +365,25 @@ const styles = StyleSheet.create({
   },
 
   /* 기다리는 동안 보여줄 정보 (시안 3번의 통계 카드 자리) */
-  fact: {
+  factArea: {
+    alignSelf: "stretch",
     marginTop: space.xl,
+    minHeight: 128,
+    justifyContent: "center",
+  },
+  factPage: {
     paddingHorizontal: space.md,
     alignItems: "center",
+    justifyContent: "center",
   },
+  dots: { flexDirection: "row", gap: space.sm, marginTop: space.md },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.line,
+  },
+  dotOn: { backgroundColor: colors.mint },
   factValue: {
     fontSize: font.h1,
     fontWeight: weight.bold,
