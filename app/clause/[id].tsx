@@ -127,7 +127,7 @@ export default function ClauseDetail() {
           }
         >
           <Text style={styles.primaryText}>
-            사장님께 말씀 드릴 문장 추천
+            이렇게 말해보세요.
           </Text>
         </Pressable>
       )}
