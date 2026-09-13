@@ -73,10 +73,10 @@ export default function Script() {
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <View>
-        <Text style={styles.title}>이렇게 말해보세요</Text>
+        <Text style={styles.title}>문장 추천</Text>
 
         <Text style={styles.sub}>
-          편한 세기를 골라서 그대로 읽으면 돼요
+          원하는 말투를 선택하여, 상황에 맞게 전달해보세요.
         </Text>
       </View>
 
@@ -99,17 +99,13 @@ export default function Script() {
                 tone === t && styles.toneTextOn,
               ]}
             >
-              {t === "soft" ? "부드럽게" : "단단하게"}
+              {t === "soft" ? "정중하게" : "명확하게"}
             </Text>
           </Pressable>
         ))}
       </View>
 
       <Text style={styles.script}>{text}</Text>
-
-      <Text style={styles.tip}>
-        외우지 않아도 괜찮아요. 화면을 보면서 읽어도 됩니다.
-      </Text>
 
       <Pressable
         style={styles.primary}
@@ -163,7 +159,7 @@ export default function Script() {
         onPress={() => router.push("/help")}
       >
         <Text style={styles.secondaryText}>
-          말 꺼내기 어려우면 →
+          노동청에 신고하기 →
         </Text>
       </Pressable>
     </ScrollView>

@@ -90,7 +90,7 @@ export default function ClauseDetail() {
       {clause.original !== "" && (
         <View style={styles.section}>
           <Text style={styles.sectionHead}>
-            계약서에 적힌 내용
+            계약서 내용
           </Text>
 
           <Text style={styles.quote}>
@@ -102,7 +102,7 @@ export default function ClauseDetail() {
       {/* 쉽게 설명 */}
       <View style={styles.section}>
         <Text style={styles.sectionHead}>
-          쉽게 말하면
+          내용 설명
         </Text>
 
         <Text style={styles.plain}>
@@ -132,7 +132,7 @@ export default function ClauseDetail() {
           }
         >
           <Text style={styles.primaryText}>
-            사장님께 말할 문장 보기
+            사장님께 말씀 드릴 문장 추천
           </Text>
         </Pressable>
       )}
