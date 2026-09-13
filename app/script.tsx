@@ -5,9 +5,15 @@
  * 전달할 문장을 확인하고 복사할 수 있는 화면입니다.
  */
 
+/**
+ * 말할 문장 화면. 담당: 정윤지
+ *
+ * 계약서 문제를 확인한 뒤 사용자가 실제로 상대방에게
+ * 전달할 문장을 확인할 수 있는 화면입니다.
+ */
+
 import { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import * as Clipboard from "expo-clipboard";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { findClause } from "../types";
 import { useCurrent } from "../lib/session";
@@ -32,7 +38,6 @@ export default function Script() {
     : undefined;
 
   const [tone, setTone] = useState<Tone>("soft");
-  const [copied, setCopied] = useState(false);
 
   if (!clause) {
     return (
@@ -45,11 +50,6 @@ export default function Script() {
   }
 
   const text = clause.scripts[tone];
-
-  async function onCopy() {
-    await Clipboard.setStringAsync(text);
-    setCopied(true);
-  }
 
   return (
     <ScrollView contentContainerStyle={styles.screen}>
@@ -76,7 +76,6 @@ export default function Script() {
             }}
             onPress={() => {
               setTone(t);
-              setCopied(false);
             }}
           >
             <Text
@@ -94,23 +93,6 @@ export default function Script() {
       <Text style={styles.script}>
         {text}
       </Text>
-
-      <Pressable
-        style={styles.primary}
-        onPress={onCopy}
-      >
-        <Text style={styles.primaryText}>
-          {copied ? "복사 완료 ✓" : "문장 복사하기"}
-        </Text>
-      </Pressable>
-
-      {copied && (
-        <View style={styles.copyNotice}>
-          <Text style={styles.copyNoticeText}>
-            문장이 클립보드에 복사됐어요.
-          </Text>
-        </View>
-      )}
 
       <Pressable
         style={styles.secondary}
@@ -181,35 +163,6 @@ const styles = StyleSheet.create({
     fontSize: font.h2,
     lineHeight: 30,
     color: colors.navy,
-  },
-
-  primary: {
-    backgroundColor: colors.navy,
-    borderRadius: radius.md,
-    minHeight: minTouch,
-    paddingVertical: space.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  primaryText: {
-    color: colors.white,
-    fontSize: font.body,
-    fontWeight: weight.semibold,
-  },
-
-  copyNotice: {
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    alignItems: "center",
-  },
-
-  copyNoticeText: {
-    color: colors.mintText,
-    fontSize: font.small,
-    fontWeight: weight.semibold,
   },
 
   secondary: {
