@@ -14,9 +14,11 @@ import {
   type CheckId,
   type Clause,
   type InspectResult,
+  type Note,
   type Verdict,
 } from "../types";
 import { mockResult } from "../constants/mock";
+import { getWorkplace } from "./session";
 
 /**
  * 배포된 서버 주소.
@@ -99,6 +101,15 @@ function toClause(raw: unknown, id: CheckId): Clause {
  * 항상 8개를 정해진 순서로 맞춰줍니다.
  * 이게 없으면 "8개 중 2개 문제"라는 화면 문구가 거짓이 됩니다.
  */
+/** "몰랐을 수도 있는 것" 한 덩어리. 이상한 값이 와도 화면이 안 깨지게 다듬습니다 */
+function toNote(raw: any): Note {
+  return {
+    id: typeof raw?.id === "string" ? raw.id : "",
+    text: typeof raw?.text === "string" ? raw.text : "",
+    law: typeof raw?.law === "string" ? raw.law : "",
+  };
+}
+
 function normalize(raw: any): InspectResult {
   const incoming: any[] = Array.isArray(raw?.clauses) ? raw.clauses : [];
   const byId = new Map<string, any>();
@@ -121,6 +132,10 @@ function normalize(raw: any): InspectResult {
       : [],
     basedOn: typeof raw?.basedOn === "string" ? raw.basedOn : "",
     title: typeof raw?.title === "string" ? raw.title : undefined,
+    // 서버가 안 보내도 앱이 깨지지 않아야 합니다. 배포 순서가 어긋날 수 있습니다.
+    notes: Array.isArray(raw?.notes)
+      ? raw.notes.map(toNote).filter((n: Note) => n.text !== "")
+      : [],
   };
 }
 
@@ -192,6 +207,8 @@ async function run(imageBase64: string): Promise<InspectResult> {
     );
   }
 
+  const workplace = getWorkplace();
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -203,7 +220,13 @@ async function run(imageBase64: string): Promise<InspectResult> {
         "Content-Type": "application/json",
         ...(API_TOKEN ? { "X-App-Token": API_TOKEN } : {}),
       },
-      body: JSON.stringify({ imageBase64 }),
+      body: JSON.stringify({
+        imageBase64,
+        // 사진 보내기 전에 답한 조건. 안 골랐으면 null 이 그대로 간다.
+        // 서버는 null 이면 5인 이상·만 18세 이상 기준으로 보고 전제에 밝힌다.
+        employeeCount: workplace.employeeCount,
+        isMinor: workplace.isMinor,
+      }),
       signal: controller.signal,
     });
   } catch (e: any) {
