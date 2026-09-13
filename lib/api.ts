@@ -3,6 +3,9 @@
  *
  * 서버가 아직 없으면 .env 에 EXPO_PUBLIC_USE_MOCK=true 를 두세요.
  * 가짜 결과가 돌아와서 화면 개발을 바로 할 수 있습니다.
+ *
+ * 목 모드는 이 값을 직접 켰을 때만 돕니다. EXPO_PUBLIC_API_URL 이 비어 있으면
+ * 가짜 결과로 넘어가지 않고 에러를 냅니다. (run() 안의 주석을 보세요)
  */
 
 import {
@@ -136,7 +139,7 @@ export function inspectContract(imageBase64: string): Promise<InspectResult> {
 }
 
 async function run(imageBase64: string): Promise<InspectResult> {
-  if (USE_MOCK || !API_URL) {
+  if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 2000));
     if (MOCK_ERROR) {
       const kind = ERROR_KINDS.includes(MOCK_ERROR as ApiErrorKind)
@@ -145,6 +148,35 @@ async function run(imageBase64: string): Promise<InspectResult> {
       throw new ApiError(kind, "EXPO_PUBLIC_MOCK_ERROR");
     }
     return { ...mockResult, id: String(Date.now()) };
+  }
+
+  /**
+   * 주소가 비어 있으면 예전에는 목 모드로 넘어갔습니다. 그게 제일 나쁜 동작이었습니다.
+   * 앱은 정상으로 보이는데 어떤 계약서를 넣어도 결과가 같아서, 고장났다는 걸
+   * 알아차릴 방법이 없습니다. (판정이 안 된다며 반나절을 여기 썼습니다)
+   *
+   * .env 는 .gitignore 라서 다른 PC 에서 clone 만 하면 바로 이 상태가 됩니다.
+   * 이제는 에러를 냅니다. 화면에는 "지금은 분석할 수 없어요" 가 뜹니다.
+   * 가짜 데이터가 필요하면 EXPO_PUBLIC_USE_MOCK=true 를 직접 켜세요.
+   */
+  if (!API_URL) {
+    console.error(
+      "[albacheck] EXPO_PUBLIC_API_URL 이 비어 있습니다. " +
+        ".env 를 저장소 루트에 두고 npx expo start -c 로 다시 시작하세요.",
+    );
+    throw new ApiError("server", "EXPO_PUBLIC_API_URL 이 비어 있습니다");
+  }
+
+  /**
+   * 토큰이 비면 헤더를 아예 안 보냅니다. 서버가 토큰을 요구하면 전부 401 이고,
+   * 화면에는 "지금은 분석할 수 없어요" 로만 보여 원인을 알 수 없습니다.
+   * 서버의 APP_TOKEN 이 비어 있으면 검사를 건너뛰므로 막지는 않고 알리기만 합니다.
+   */
+  if (!API_TOKEN) {
+    console.warn(
+      "[albacheck] EXPO_PUBLIC_API_TOKEN 이 비어 있습니다. " +
+        "서버가 토큰을 요구하면 모든 요청이 401 로 막힙니다.",
+    );
   }
 
   const controller = new AbortController();
