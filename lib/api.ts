@@ -18,7 +18,21 @@ import {
 } from "../types";
 import { mockResult } from "../constants/mock";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
+/**
+ * 배포된 서버 주소.
+ *
+ * .env 가 없는 PC 에서도 그냥 돌게 기본값을 둡니다. 팀원이 clone 만 해도
+ * 판정이 되는 게 목적입니다. (.env 는 .gitignore 라서 clone 으로 안 따라옵니다)
+ *
+ * 이 주소는 비밀이 아닙니다. .env.example, PROGRESS.md, server/deploy/DEPLOY.md 에
+ * 이미 적혀 있고 저장소는 공개입니다. 숨겨서 얻는 게 없습니다.
+ * 토큰은 다릅니다. 그건 커밋하지 않고 .env 에만 둡니다.
+ *
+ * .env 에 값이 있으면 그 값이 이깁니다. 로컬 서버(127.0.0.1:8003)에 붙일 때 씁니다.
+ */
+const DEFAULT_API_URL = "https://smpsws.shop/albacheck";
+const API_URL =
+  (process.env.EXPO_PUBLIC_API_URL ?? "").trim() || DEFAULT_API_URL;
 const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? "";
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === "true";
 
@@ -155,9 +169,8 @@ async function run(imageBase64: string): Promise<InspectResult> {
    * 앱은 정상으로 보이는데 어떤 계약서를 넣어도 결과가 같아서, 고장났다는 걸
    * 알아차릴 방법이 없습니다. (판정이 안 된다며 반나절을 여기 썼습니다)
    *
-   * .env 는 .gitignore 라서 다른 PC 에서 clone 만 하면 바로 이 상태가 됩니다.
-   * 이제는 에러를 냅니다. 화면에는 "지금은 분석할 수 없어요" 가 뜹니다.
-   * 가짜 데이터가 필요하면 EXPO_PUBLIC_USE_MOCK=true 를 직접 켜세요.
+   * DEFAULT_API_URL 이 있으므로 지금은 여기까지 오지 않습니다. 그 기본값을
+   * 누가 지웠을 때를 대비한 안전장치로 남겨둡니다. 목으로 빠지는 일은 없어야 합니다.
    */
   if (!API_URL) {
     console.error(
