@@ -33,37 +33,32 @@ npm install
 `develop` 이 최신 브랜치다. `main` 은 뒤처져 있으니 쓰지 않는다.
 `npm install` 은 3~5분 걸린다.
 
-### .env 옮기기 — 빼먹기 쉬운 단계
+### .env — 토큰 한 줄
 
-**`.env` 는 `.gitignore` 라서 git 으로 넘어오지 않는다.**
-`git clone` 만 하면 이 파일이 없고, 그러면 앱이 토큰 없이 요청을 보내
-서버가 전부 401 로 막는다. 앱 화면에는 "지금은 분석할 수 없어요" 만 떠서
+**`.env` 는 `.gitignore` 라서 git 으로 넘어오지 않는다.** `git clone` 만 하면
+이 파일이 없다. 서버 주소는 코드에 기본값이 있어서 괜찮지만, 토큰이 없으면
+서버가 401 로 막는다. 앱 화면에는 "지금은 분석할 수 없어요" 만 떠서
 원인을 알 수 없다.
 
-가장 확실한 방법은 **기존 PC 의 `.env` 파일을 그대로 복사**해 오는 것이다.
-USB, 카톡 나와의 채팅, 클라우드 중 아무거나 쓴다. 위치는 저장소 루트다.
+저장소 루트에 `.env` 를 만들고 이 한 줄만 넣으면 된다.
 
 ```
-2026_starthon_main_project/.env
+EXPO_PUBLIC_API_TOKEN=<32자>
 ```
 
-파일을 못 옮기는 상황이면 `.env.example` 을 복사해서 직접 채운다.
+값은 전정현에게 받는다. 기존 PC 의 `.env` 나 서버 `/etc/albacheck.env` 의
+`APP_TOKEN` 에 있다. 저장소에는 적지 않는다.
 
-```bash
-cp .env.example .env      # 윈도우 cmd: copy .env.example .env
-```
+기존 PC 의 `.env` 파일을 그대로 복사해 와도 된다. USB, 카톡 나와의 채팅,
+클라우드 중 아무거나 쓴다.
 
-채울 값 4개:
+나머지 값은 안 건드려도 된다. 무엇이 있는지는 `.env.example` 에 적혀 있다.
 
-| 키 | 값 |
+| 키 | 안 적으면 |
 |---|---|
-| `EXPO_PUBLIC_API_URL` | `https://smpsws.shop/albacheck` — 끝에 `/` 를 붙이지 않는다 |
-| `EXPO_PUBLIC_API_TOKEN` | 32자. 기존 PC 의 `.env` 또는 서버 `/etc/albacheck.env` 의 `APP_TOKEN` |
-| `EXPO_PUBLIC_USE_MOCK` | `false` |
-| `EXPO_PUBLIC_MOCK_ERROR` | 비워둔다 |
-
-`.env.example` 의 기본값은 `USE_MOCK=true` 다. **`false` 로 바꾸지 않으면
-서버를 안 타고 계속 같은 가짜 결과만 나온다.**
+| `EXPO_PUBLIC_API_URL` | 배포된 서버(`https://smpsws.shop/albacheck`)를 쓴다. 로컬 서버에 붙일 때만 적는다 |
+| `EXPO_PUBLIC_USE_MOCK` | `false` 로 동작한다. `true` 면 가짜 결과만 나온다 |
+| `EXPO_PUBLIC_MOCK_ERROR` | 목 모드에서 에러 화면을 볼 때만 쓴다 |
 
 ### 폰
 
