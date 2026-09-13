@@ -1,0 +1,31 @@
+; /etc/systemd/system/albacheck.service 로 복사합니다.
+;
+; 2026-09-13 실제 배포에 쓰인 내용입니다. 포트 8003 (8000~8002·8010·8080 은 선점됨).
+;
+; 워커는 1개입니다. OpenAI 를 기다리는 시간이 대부분이라 늘려도 빨라지지 않고,
+; Lightsail 최소 인스턴스에서 Pillow 가 사진을 펼치는 순간 메모리가 부족해질 수 있습니다.
+
+[Unit]
+Description=albacheck - 알바 계약서 검진 서버
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/albacheck/server
+
+; 비밀값은 저장소가 아니라 여기 둡니다. root 소유 chmod 600.
+EnvironmentFile=/etc/albacheck.env
+
+; 127.0.0.1 에만 붙입니다. 0.0.0.0 으로 열면 nginx 를 건너뛰어
+; HTTPS 도 업로드 크기 제한도 없는 통로가 생깁니다.
+ExecStart=/opt/albacheck/.venv/bin/uvicorn main:app \
+    --host 127.0.0.1 --port 8003 --workers 1 \
+    --proxy-headers --forwarded-allow-ips=127.0.0.1
+
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -3,6 +3,9 @@
  *
  * 서버가 아직 없으면 .env 에 EXPO_PUBLIC_USE_MOCK=true 를 두세요.
  * 가짜 결과가 돌아와서 화면 개발을 바로 할 수 있습니다.
+ *
+ * 목 모드는 이 값을 직접 켰을 때만 돕니다. EXPO_PUBLIC_API_URL 이 비어 있으면
+ * 가짜 결과로 넘어가지 않고 에러를 냅니다. (run() 안의 주석을 보세요)
  */
 
 import {
@@ -15,7 +18,21 @@ import {
 } from "../types";
 import { mockResult } from "../constants/mock";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
+/**
+ * 배포된 서버 주소.
+ *
+ * .env 가 없는 PC 에서도 그냥 돌게 기본값을 둡니다. 팀원이 clone 만 해도
+ * 판정이 되는 게 목적입니다. (.env 는 .gitignore 라서 clone 으로 안 따라옵니다)
+ *
+ * 이 주소는 비밀이 아닙니다. .env.example, PROGRESS.md, server/deploy/DEPLOY.md 에
+ * 이미 적혀 있고 저장소는 공개입니다. 숨겨서 얻는 게 없습니다.
+ * 토큰은 다릅니다. 그건 커밋하지 않고 .env 에만 둡니다.
+ *
+ * .env 에 값이 있으면 그 값이 이깁니다. 로컬 서버(127.0.0.1:8003)에 붙일 때 씁니다.
+ */
+const DEFAULT_API_URL = "https://smpsws.shop/albacheck";
+const API_URL =
+  (process.env.EXPO_PUBLIC_API_URL ?? "").trim() || DEFAULT_API_URL;
 const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? "";
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === "true";
 
@@ -136,7 +153,7 @@ export function inspectContract(imageBase64: string): Promise<InspectResult> {
 }
 
 async function run(imageBase64: string): Promise<InspectResult> {
-  if (USE_MOCK || !API_URL) {
+  if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 2000));
     if (MOCK_ERROR) {
       const kind = ERROR_KINDS.includes(MOCK_ERROR as ApiErrorKind)
@@ -145,6 +162,34 @@ async function run(imageBase64: string): Promise<InspectResult> {
       throw new ApiError(kind, "EXPO_PUBLIC_MOCK_ERROR");
     }
     return { ...mockResult, id: String(Date.now()) };
+  }
+
+  /**
+   * 주소가 비어 있으면 예전에는 목 모드로 넘어갔습니다. 그게 제일 나쁜 동작이었습니다.
+   * 앱은 정상으로 보이는데 어떤 계약서를 넣어도 결과가 같아서, 고장났다는 걸
+   * 알아차릴 방법이 없습니다. (판정이 안 된다며 반나절을 여기 썼습니다)
+   *
+   * DEFAULT_API_URL 이 있으므로 지금은 여기까지 오지 않습니다. 그 기본값을
+   * 누가 지웠을 때를 대비한 안전장치로 남겨둡니다. 목으로 빠지는 일은 없어야 합니다.
+   */
+  if (!API_URL) {
+    console.error(
+      "[albacheck] EXPO_PUBLIC_API_URL 이 비어 있습니다. " +
+        ".env 를 저장소 루트에 두고 npx expo start -c 로 다시 시작하세요.",
+    );
+    throw new ApiError("server", "EXPO_PUBLIC_API_URL 이 비어 있습니다");
+  }
+
+  /**
+   * 토큰이 비면 헤더를 아예 안 보냅니다. 서버가 토큰을 요구하면 전부 401 이고,
+   * 화면에는 "지금은 분석할 수 없어요" 로만 보여 원인을 알 수 없습니다.
+   * 서버의 APP_TOKEN 이 비어 있으면 검사를 건너뛰므로 막지는 않고 알리기만 합니다.
+   */
+  if (!API_TOKEN) {
+    console.warn(
+      "[albacheck] EXPO_PUBLIC_API_TOKEN 이 비어 있습니다. " +
+        "서버가 토큰을 요구하면 모든 요청이 401 로 막힙니다.",
+    );
   }
 
   const controller = new AbortController();

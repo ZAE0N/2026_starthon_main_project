@@ -16,7 +16,6 @@
 
 import { useState } from "react";
 import { router } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 import {
   ActivityIndicator,
   Linking,
@@ -26,7 +25,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { pickPhoto, takePhoto } from "../lib/photo";
+import { getPhotoPermission, pickPhoto, takePhoto } from "../lib/photo";
 import { clearCurrent, setCurrentPhoto } from "../lib/session";
 import { copy } from "../constants/copy";
 import {
@@ -63,10 +62,10 @@ export default function Camera() {
       const photo = source === "camera" ? await takePhoto() : await pickPhoto();
 
       if (!photo) {
-        // null 은 "취소" 와 "권한 거부" 두 가지입니다. lib/photo.ts 가 이유를
-        // 돌려주지 않아서, 권한 상태를 직접 한 번 더 읽어 구분합니다.
+	// null 은 "취소" 와 "권한 거부" 두 가지입니다.
+        // 권한 상태를 한 번 더 읽어 구분합니다.
         // (취소한 사람에게 권한 안내를 띄우면 더 헷갈립니다.)
-        if (!(await hasPermission(source))) setDenied(source);
+        if (!(await getPhotoPermission(source))) setDenied(source);
         setBusy(null);
         return;
       }
@@ -190,28 +189,6 @@ export default function Camera() {
       </View>
     </ScrollView>
   );
-}
-
-/**
- * 권한이 켜져 있는지만 확인합니다. (새로 요청하지 않습니다)
- *
- * lib/photo.ts 는 "취소" 와 "권한 거부" 를 모두 null 로 돌려줍니다.
- * 화면에서 둘을 구분해야 안내를 제대로 띄울 수 있어서 상태만 읽습니다.
- * 사진을 가져오는 일은 그대로 lib/photo.ts 가 합니다.
- *
- * TODO(전정현): lib/photo.ts 가 거부 이유를 함께 돌려주면 이 함수는 지워도 됩니다.
- */
-async function hasPermission(source: Source): Promise<boolean> {
-  try {
-    const perm =
-      source === "camera"
-        ? await ImagePicker.getCameraPermissionsAsync()
-        : await ImagePicker.getMediaLibraryPermissionsAsync();
-    return perm.granted;
-  } catch {
-    // 상태를 못 읽으면 "취소" 로 봅니다. 권한 안내를 잘못 띄우는 쪽이 더 나쁩니다.
-    return true;
-  }
 }
 
 const styles = StyleSheet.create({

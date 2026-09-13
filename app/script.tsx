@@ -51,6 +51,7 @@ export default function Script() {
 
   const text = clause.scripts[tone];
 
+<<<<<<< HEAD
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <View>
@@ -60,6 +61,32 @@ export default function Script() {
 
         <Text style={styles.sub}>
           원하는 말투를 선택하여, 상황에 맞게 전달해보세요.
+=======
+  async function onCopy() {
+    await Clipboard.setStringAsync(text);
+    setCopied(true);
+    setAsked(true);
+  }
+
+  async function onAnswer(value: FollowUp) {
+    setAnswer(value);
+    setFollowUp(value);
+
+    if (result) {
+      await updateResult(result.id, {
+        followUp: value,
+      });
+    }
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.screen}>
+      <View>
+        <Text style={styles.title}>이렇게 말해보세요</Text>
+
+        <Text style={styles.sub}>
+          편한 세기를 골라서 그대로 읽으면 돼요
+>>>>>>> develop
         </Text>
       </View>
 
@@ -67,10 +94,14 @@ export default function Script() {
         {(["soft", "firm"] as Tone[]).map((t) => (
           <Pressable
             key={t}
+<<<<<<< HEAD
             style={[
               styles.tone,
               tone === t && styles.toneOn,
             ]}
+=======
+            style={[styles.tone, tone === t && styles.toneOn]}
+>>>>>>> develop
             accessibilityState={{
               selected: tone === t,
             }}
@@ -84,12 +115,17 @@ export default function Script() {
                 tone === t && styles.toneTextOn,
               ]}
             >
+<<<<<<< HEAD
               {t === "soft" ? "정중하게" : "명확하게"}
+=======
+              {t === "soft" ? "부드럽게" : "단단하게"}
+>>>>>>> develop
             </Text>
           </Pressable>
         ))}
       </View>
 
+<<<<<<< HEAD
       <Text style={styles.script}>
         {text}
       </Text>
@@ -102,6 +138,69 @@ export default function Script() {
           노동청에 신고하기 →
         </Text>
       </Pressable>
+=======
+      <Text style={styles.script}>{text}</Text>
+
+      <Text style={styles.tip}>
+        외우지 않아도 괜찮아요. 화면을 보면서 읽어도 됩니다.
+      </Text>
+
+      <Pressable
+        style={styles.primary}
+        onPress={onCopy}
+      >
+        <Text style={styles.primaryText}>
+          {copied ? "복사 완료 ✓" : "문장 복사하기"}
+        </Text>
+      </Pressable>
+
+      {copied && (
+        <View style={styles.copyNotice}>
+          <Text style={styles.copyNoticeText}>
+            문장이 클립보드에 복사됐어요.
+          </Text>
+        </View>
+      )}
+
+      {asked && (
+        <View style={styles.followUp}>
+          <Text style={styles.followUpQ}>
+            {copy.followUp.question}
+          </Text>
+
+          <View style={styles.followUpRow}>
+            {copy.followUp.options.map((o) => (
+              <Pressable
+                key={o.value}
+                style={[
+                  styles.chip,
+                  answer === o.value && styles.chipOn,
+                ]}
+                onPress={() => onAnswer(o.value)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    answer === o.value && styles.chipTextOn,
+                  ]}
+                >
+                  {o.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
+      <Pressable
+        style={styles.secondary}
+        onPress={() => router.push("/help")}
+      >
+        <Text style={styles.secondaryText}>
+          말 꺼내기 어려우면 →
+        </Text>
+      </Pressable>
+>>>>>>> develop
     </ScrollView>
   );
 }
@@ -165,6 +264,89 @@ const styles = StyleSheet.create({
     color: colors.navy,
   },
 
+<<<<<<< HEAD
+=======
+  tip: {
+    fontSize: font.small,
+    color: colors.gray,
+    lineHeight: 20,
+  },
+
+  primary: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.md,
+    minHeight: minTouch,
+    paddingVertical: space.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  primaryText: {
+    color: colors.white,
+    fontSize: font.body,
+    fontWeight: weight.semibold,
+  },
+
+  copyNotice: {
+    backgroundColor: colors.mintBg,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    alignItems: "center",
+  },
+
+  copyNoticeText: {
+    color: colors.mintText,
+    fontSize: font.small,
+    fontWeight: weight.semibold,
+  },
+
+  followUp: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: space.md,
+    gap: space.sm,
+  },
+
+  followUpQ: {
+    fontSize: font.body,
+    fontWeight: weight.semibold,
+    color: colors.navy,
+  },
+
+  followUpRow: {
+    flexDirection: "row",
+    gap: space.sm,
+    flexWrap: "wrap",
+  },
+
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.full,
+    backgroundColor: colors.white,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    minHeight: minTouch,
+    justifyContent: "center",
+  },
+
+  chipOn: {
+    borderColor: colors.mint,
+    backgroundColor: colors.mintBg,
+  },
+
+  chipText: {
+    fontSize: font.small,
+    color: colors.navySoft,
+  },
+
+  chipTextOn: {
+    color: colors.mintText,
+    fontWeight: weight.semibold,
+  },
+
+>>>>>>> develop
   secondary: {
     borderWidth: 1,
     borderColor: colors.line,
