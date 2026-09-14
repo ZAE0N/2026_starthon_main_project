@@ -20,9 +20,8 @@ import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -65,18 +64,16 @@ const FACTS = [
 ];
 
 /**
- * 진행 막대가 끝까지 차는 데 걸리는 시간 (밀리초).
+ * 진행 막대 4칸과 그때 보여줄 문구. at 은 "이 초가 지나면" 이라는 뜻입니다.
  *
- * 실측으로 서버 판정이 8~9초입니다. 거기에 여유를 둬서 10초로 잡았습니다.
- * 이 값은 연출 길이일 뿐이고, 요청을 끊는 타임아웃은 lib/api.ts 의 45초입니다.
- * 둘을 같게 만들면 조금 느린 응답을 정상인데도 끊어버립니다.
- */
-const PROGRESS_MS = 10_000;
-
-/**
- * 단계별 문구. at 은 "이 초가 지나면" 이라는 뜻입니다.
- * PROGRESS_MS 10초에 맞춰 네 단계를 고르게 뒀습니다. 목 모드는 2초에 끝나서
- * 두 번째 단계까지만 보입니다.
+ * 실측으로 서버 판정이 8~9초입니다. 여유를 둬서 10초를 연출 예산으로 잡고
+ * 네 단계를 고르게 뒀습니다. 이 값을 늘리면 마지막 단계("결과를 정리하고 있어요")를
+ * 사용자가 볼 일이 없어지고, 막대도 절반만 켜진 채로 화면이 넘어갑니다.
+ *
+ * 여기 적은 초는 연출 길이일 뿐입니다. 요청을 끊는 타임아웃은 lib/api.ts 의
+ * 45초이고, 둘을 같게 만들면 조금 느린 응답을 정상인데도 끊어버립니다.
+ *
+ * 목 모드는 2초에 끝나서 두 번째 단계까지만 보입니다.
  */
 const STAGES = [
   { at: 0, label: "잠시만 기다려 주세요" },
@@ -93,6 +90,15 @@ const SLOW_AFTER = 12;
 
 /** 정보 카드가 바뀌는 간격 (밀리초). 10초에 세 장이 한 바퀴 돕니다. */
 const FACT_INTERVAL = 3300;
+
+/**
+ * 다음에 이 화면이 열릴 때 먼저 보여줄 카드 번호.
+ *
+ * 분석이 몇 초 만에 끝나면 카드가 한 번도 안 바뀝니다. 그때 항상 같은 카드만
+ * 나오면 세 장을 넣은 의미가 없으므로, 화면이 열릴 때마다 다음 카드부터
+ * 시작하게 합니다. (앱을 완전히 껐다 켜면 다시 0번부터입니다)
+ */
+let nextStart = 0;
 
 export default function Analyzing() {
   const [errorKind, setErrorKind] = useState<ApiErrorKind | null>(null);
