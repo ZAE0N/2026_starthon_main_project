@@ -21,7 +21,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import type { FollowUp, InspectResult, Photo } from "../types";
+import type { InspectResult, Photo } from "../types";
 
 let current: InspectResult | null = null;
 let currentPhoto: Photo | null = null;
@@ -50,13 +50,6 @@ export function getCurrent(): InspectResult | null {
 /** 화면에서 쓰는 훅. 값이 바뀌면 자동으로 다시 그려집니다. */
 export function useCurrent(): InspectResult | null {
   return useSyncExternalStore(subscribe, getCurrent, getCurrent);
-}
-
-/** 사용자가 실제로 말을 꺼냈는지 기록 (핵심 지표) */
-export function setFollowUp(value: FollowUp) {
-  if (!current) return;
-  current = { ...current, followUp: value };
-  emit();
 }
 
 /** 기록함에 표시할 이름 붙이기 */
