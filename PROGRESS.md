@@ -5,6 +5,7 @@
 
 로드맵은 `README.md`, 개발 규칙은 `AGENTS.md`, 세팅 내역은 `SETUP.md` 를 봅니다.
 서버 실행은 `server/run_local.md`, 배포는 `server/deploy/DEPLOY.md` 입니다.
+폰에 띄우는 방법은 `RUN_EXPO_GO.md`, 회의 지적사항은 `REVIEW_2026-09-14.md` 입니다.
 이 파일은 **무엇이 끝났고 무엇이 남았는지**만 추적합니다.
 
 ---
