@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { countIllegal, getIssues, type InspectResult } from "../types";
+import { FileText, MoreHorizontal } from "lucide-react-native";
 import { setCurrent, setCurrentPhoto } from "../lib/session";
 import { deleteResult, loadHistory, updateResult } from "../lib/storage";
 import { copy } from "../constants/copy";
@@ -178,7 +179,12 @@ export default function History() {
                     />
                   ) : (
                     <View style={[styles.thumb, styles.thumbEmpty]}>
-                      <Text style={styles.thumbMark}>문서</Text>
+                      {/* 사진 복사가 실패했을 때. 전에는 "문서" 라는 글자를 썼습니다 */}
+                      <FileText
+                        size={20}
+                        color={colors.grayLight}
+                        strokeWidth={1.5}
+                      />
                     </View>
                   )}
 
@@ -205,7 +211,7 @@ export default function History() {
                   accessibilityRole="button"
                   accessibilityLabel="이름 바꾸기 또는 삭제"
                 >
-                  <Text style={styles.moreMark}>⋯</Text>
+                  <MoreHorizontal size={20} color={colors.grayLight} />
                 </Pressable>
               </View>
             );
@@ -387,7 +393,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  thumbMark: { fontSize: font.tiny, color: colors.grayLight },
 
   cardBody: { flex: 1, minWidth: 0 },
   cardLabel: {
@@ -401,7 +406,6 @@ const styles = StyleSheet.create({
   pillText: { fontSize: font.tiny, fontWeight: weight.semibold },
 
   more: { paddingHorizontal: space.xs, paddingVertical: space.xs },
-  moreMark: { fontSize: font.h2, color: colors.grayLight, lineHeight: 22 },
 
   secondary: {
     borderWidth: 1,

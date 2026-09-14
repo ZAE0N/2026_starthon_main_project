@@ -26,6 +26,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { CircleAlert, CircleHelp } from "lucide-react-native";
 import { ApiError, inspectContract, type ApiErrorKind } from "../lib/api";
 import { getCurrentPhoto, setCurrent } from "../lib/session";
 import { saveResult } from "../lib/storage";
@@ -88,8 +89,12 @@ const STAGES = [
  */
 const SLOW_AFTER = 12;
 
-/** 정보 카드가 바뀌는 간격 (밀리초). 10초에 세 장이 한 바퀴 돕니다. */
-const FACT_INTERVAL = 3300;
+/**
+ * 정보 카드가 바뀌는 간격 (밀리초).
+ * 3300 은 넘기기까지 너무 길다는 지적이 있어 2200 으로 줄였습니다.
+ * 10초 동안 세 장이 한 바퀴 돌고 조금 더 진행됩니다.
+ */
+const FACT_INTERVAL = 2200;
 
 /**
  * 다음에 이 화면이 열릴 때 먼저 보여줄 카드 번호.
@@ -200,14 +205,12 @@ export default function Analyzing() {
             ]}
             accessible={false}
           >
-            <Text
-              style={[
-                styles.badgeMark,
-                needsNewPhoto ? styles.badgeMarkAttention : styles.badgeMarkCalm,
-              ]}
-            >
-              {needsNewPhoto ? "?" : "!"}
-            </Text>
+            {/* 전에는 ? / ! 글자였습니다 */}
+            {needsNewPhoto ? (
+              <CircleHelp size={26} color={colors.amber} strokeWidth={2} />
+            ) : (
+              <CircleAlert size={26} color={colors.navySoft} strokeWidth={2} />
+            )}
           </View>
 
           <Text style={styles.title}>{msg.title}</Text>
@@ -425,9 +428,6 @@ const styles = StyleSheet.create({
   },
   badgeCalm: { backgroundColor: colors.surface },
   badgeAttention: { backgroundColor: colors.amberBg },
-  badgeMark: { fontSize: font.h2, fontWeight: weight.bold },
-  badgeMarkCalm: { color: colors.navySoft },
-  badgeMarkAttention: { color: colors.amber },
 
   /* 하단 버튼 */
   foot: { gap: space.sm },

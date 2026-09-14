@@ -41,13 +41,24 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          {/*
+            판정 전제를 처음부터 알려줍니다.
+
+            회의 결론입니다. 전에는 결과 화면 아래에만 있었는데, 그건 이미 판정을
+            다 본 뒤입니다. 5명 미만인 곳에서 일하는 사람은 자기 결과가 기준에
+            안 맞는다는 걸 마지막에 알게 됩니다.
+
+            문구는 laws.json 의 assumptions 와 같은 기준입니다.
+            서버가 조건을 받아 판정하게 되면(FEATURE_hidden-conditions) 이 카드는
+            촬영 화면의 질문으로 대체될 수 있습니다.
+          */}
           <View style={styles.infoCard}>
             <View style={styles.infoLine} />
             <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>말 꺼낼 문장까지 알려줘요</Text>
+              <Text style={styles.infoTitle}>먼저 알아두세요</Text>
               <Text style={styles.infoBody}>
-                문제를 찾는 데서 끝나지 않아요. 사장님께 어떻게 말하면 되는지
-                두 가지 말투로 준비해 드려요.
+                만 18세 이상, 일하는 사람이 5명 이상인 곳을 기준으로 봐요.
+                5명 미만인 곳에는 적용되지 않는 법이 있어서 결과가 달라질 수 있어요.
               </Text>
             </View>
           </View>
