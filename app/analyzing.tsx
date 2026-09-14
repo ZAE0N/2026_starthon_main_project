@@ -14,21 +14,15 @@
  *     법 조문을 돌아가며 보여줍니다. 출처가 확보되면 FACTS 배열에 넣으면 됩니다.
  *   - 항목 개수는 CHECK_ORDER 에서 세서 씁니다. 숫자를 적어두면 항목이 늘거나
  *     줄었을 때 화면 문구가 거짓이 됩니다. (시안의 "7개 항목" 이 그렇게 틀렸습니다)
- *
- * 정보 카드 3장
- *   손으로 좌우로 넘길 수 있습니다. 한 번 넘기면 자동 전환은 멈춥니다.
- *   (읽는 중에 저절로 넘어가면 오히려 불편합니다)
- *   목 모드는 분석이 2초에 끝나서 자동 전환이 한 번도 일어나지 않습니다.
- *   그래서 nextStart 로 화면이 열릴 때마다 다른 카드부터 시작합니다.
- *   자동 전환을 눈으로 보려면 FACT_INTERVAL 을 600 정도로 잠깐 낮추세요.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -71,33 +65,34 @@ const FACTS = [
 ];
 
 /**
- * 진행 막대 4칸과 그때 보여줄 문구.
- * at 은 "이 초가 지나면" 이라는 뜻입니다. 목 모드는 2초, 실제 서버는 보통 10~20초입니다.
+ * 진행 막대가 끝까지 차는 데 걸리는 시간 (밀리초).
+ *
+ * 실측으로 서버 판정이 8~9초입니다. 거기에 여유를 둬서 10초로 잡았습니다.
+ * 이 값은 연출 길이일 뿐이고, 요청을 끊는 타임아웃은 lib/api.ts 의 45초입니다.
+ * 둘을 같게 만들면 조금 느린 응답을 정상인데도 끊어버립니다.
+ */
+const PROGRESS_MS = 10_000;
+
+/**
+ * 단계별 문구. at 은 "이 초가 지나면" 이라는 뜻입니다.
+ * PROGRESS_MS 10초에 맞춰 네 단계를 고르게 뒀습니다. 목 모드는 2초에 끝나서
+ * 두 번째 단계까지만 보입니다.
  */
 const STAGES = [
   { at: 0, label: "잠시만 기다려 주세요" },
-  { at: 4, label: "계약서 글자를 읽고 있어요" },
-  { at: 10, label: `항목 ${CHECK_ORDER.length}개를 하나씩 확인하고 있어요` },
-  { at: 18, label: "결과를 정리하고 있어요" },
+  { at: 3, label: "계약서 글자를 읽고 있어요" },
+  { at: 6, label: `항목 ${CHECK_ORDER.length}개를 하나씩 확인하고 있어요` },
+  { at: 9, label: "결과를 정리하고 있어요" },
 ];
 
-/** 이 초가 지나면 제목을 바꿉니다. 타임아웃은 45초입니다. */
-const SLOW_AFTER = 20;
-
 /**
- * 정보 카드가 바뀌는 간격 (밀리초).
- * 한 장을 읽는 데 3초쯤 걸리므로 그보다 조금 길게 잡았습니다.
+ * 이 초가 지나면 제목을 바꿉니다. 연출 10초 + 여유 2초.
+ * 요청을 끊는 타임아웃은 45초입니다 (lib/api.ts).
  */
-const FACT_INTERVAL = 3500;
+const SLOW_AFTER = 12;
 
-/**
- * 다음에 이 화면이 열릴 때 먼저 보여줄 카드 번호.
- *
- * 분석이 몇 초 만에 끝나면 카드가 한 번도 안 바뀝니다. 그때 항상 같은 카드만
- * 나오면 세 장을 넣은 의미가 없으므로, 화면이 열릴 때마다 다음 카드부터
- * 시작하게 합니다. (앱을 완전히 껐다 켜면 다시 0번부터입니다)
- */
-let nextStart = 0;
+/** 정보 카드가 바뀌는 간격 (밀리초). 10초에 세 장이 한 바퀴 돕니다. */
+const FACT_INTERVAL = 3300;
 
 export default function Analyzing() {
   const [errorKind, setErrorKind] = useState<ApiErrorKind | null>(null);
