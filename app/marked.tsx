@@ -1,8 +1,8 @@
 /**
- * 표시된 계약서. 담당: 전정현
+ * 형광펜 그은 계약서. 담당: 전정현
  *
  * 분석이 끝나면 결과 목록으로 바로 넘기지 않고 이 화면을 한 번 거칩니다.
- * 방금 찍은 계약서에 어디가 문제인지 형광펜으로 그어서 보여줍니다.
+ * 방금 찍은 계약서에서 문제가 되는 대목에 형광펜을 그어서 보여줍니다.
  *
  * 왜 이 화면이 있는가:
  *   결과 목록만 보여주면 "앱이 그렇다더라" 로 끝납니다. 자기가 사인한 종이에
@@ -14,14 +14,16 @@
  *   사라지면 궁금증이 아니라 짜증이 됩니다. 발표할 때도 자동으로 넘어가면
  *   설명하는 동안 화면이 먼저 지나갑니다. 그래서 사용자가 직접 넘깁니다.
  *
- * 표시할 게 없으면(전부 문제없음, 사진 없음, 위치를 못 받음) 이 화면은
+ * 표시할 게 없으면(전부 문제없음, 사진 없음, 자리를 못 받음) 이 화면은
  * 아예 열리지 않습니다. 분석중 화면이 결과로 바로 보냅니다. (app/analyzing.tsx)
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Maximize2 } from "lucide-react-native";
 import MarkedShot from "../components/MarkedShot";
+import MarkedShotZoom from "../components/MarkedShotZoom";
 import { getMarked } from "../types";
 import { useCurrent, useCurrentPhoto } from "../lib/session";
 import {
@@ -39,6 +41,7 @@ import {
 export default function Marked() {
   const result = useCurrent();
   const photo = useCurrentPhoto();
+  const [zoom, setZoom] = useState(false);
 
   /*
    * 결과가 없는데 이 화면이 열리는 경우 — 앱을 껐다 켜고 주소로 바로 들어오거나,
@@ -57,27 +60,49 @@ export default function Marked() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.title}>
-          {marked.length}곳에 표시했어요
-        </Text>
+        <Text style={styles.title}>{marked.length}곳에 표시했어요</Text>
         <Text style={styles.sub}>
           계약서에서 확인해볼 대목이에요. 무슨 뜻인지는 다음 화면에 있어요.
         </Text>
 
         {shot !== "" ? (
-          <MarkedShot uri={shot} clauses={marked} style={styles.shot} />
+          <Pressable
+            style={styles.shotWrap}
+            onPress={() => setZoom(true)}
+            accessibilityRole="button"
+            accessibilityLabel="계약서 크게 보기"
+          >
+            <MarkedShot uri={shot} clauses={marked} />
+
+            {/*
+              폰 너비에서는 계약서 글자가 원래 안 읽힙니다. 눌러서 크게 볼 수
+              있다는 것을 알려줘야 표시가 의미를 가집니다.
+            */}
+            <View style={styles.zoomHint} pointerEvents="none">
+              <Maximize2 size={13} color={colors.white} strokeWidth={2.2} />
+              <Text style={styles.zoomHintText}>눌러서 크게 보기</Text>
+            </View>
+          </Pressable>
         ) : null}
 
-        {/* 사진 위의 번호와 같은 순서입니다. 번호를 보고 여기서 찾습니다 */}
+        {/*
+          사진에 그은 순서(위 -> 아래)와 같습니다.
+          왼쪽 색칠은 사진의 형광펜 색과 같아서 어느 표시가 어느 항목인지 잇습니다.
+        */}
         <View style={styles.list}>
-          {marked.map((c, i) => {
+          {marked.map((c) => {
             const v = verdictStyle[c.verdict];
-            const m = markStyle[c.verdict];
 
             return (
               <View key={c.id} style={styles.row}>
-                <View style={[styles.num, { backgroundColor: m.edge }]}>
-                  <Text style={styles.numText}>{i + 1}</Text>
+                {/* 흰 종이 위의 형광펜과 같게 보이도록 흰 바탕에 올립니다 */}
+                <View style={styles.swatch}>
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      { backgroundColor: markStyle[c.verdict].pen },
+                    ]}
+                  />
                 </View>
 
                 <Text style={styles.rowLabel}>{c.label}</Text>
@@ -112,11 +137,16 @@ export default function Marked() {
           <Text style={styles.primaryText}>결과 자세히 보기</Text>
         </Pressable>
       </View>
+
+      <MarkedShotZoom
+        visible={zoom}
+        uri={shot}
+        clauses={marked}
+        onClose={() => setZoom(false)}
+      />
     </View>
   );
 }
-
-const NUM_SIZE = 22;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
@@ -134,21 +164,30 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  shot: { marginTop: space.md },
+  shotWrap: { marginTop: space.md },
+  zoomHint: {
+    position: "absolute",
+    right: space.sm,
+    bottom: space.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(18, 41, 77, 0.78)",
+  },
+  zoomHintText: { color: colors.white, fontSize: font.tiny },
 
   list: { marginTop: space.md, gap: space.sm },
   row: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  num: {
-    width: NUM_SIZE,
-    height: NUM_SIZE,
-    borderRadius: radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  numText: {
-    color: colors.white,
-    fontSize: font.tiny,
-    fontWeight: weight.bold,
+  /* 사진의 형광펜과 같은 색. 반투명이라 흰 바탕에 올려야 같은 색이 됩니다 */
+  swatch: {
+    width: 18,
+    height: 10,
+    borderRadius: 2,
+    overflow: "hidden",
+    backgroundColor: colors.white,
   },
   rowLabel: {
     flex: 1,

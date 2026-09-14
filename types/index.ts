@@ -41,16 +41,21 @@ export const CHECK_LABELS: Record<CheckId, string> = {
 };
 
 /**
- * 사진 안에서 이 조항이 적혀 있는 자리. 사진 전체 높이를 1.0 으로 본 비율입니다.
+ * 사진 안에서 이 조항이 적혀 있는 **글자 줄**의 자리.
+ * 사진 전체를 1.0 으로 본 비율이고, 왼쪽 위가 (0, 0) 입니다.
  *
- * 가로는 없습니다. 세로 위치만 받아서 사진 폭 전체에 형광펜처럼 띠를 긋습니다.
- * 모델이 정확한 네모를 내놓지는 못해서 그렇게 정했습니다 (server/schema.py 의 Mark).
+ * 형광펜으로 글자 위만 긋는 데 씁니다 (components/MarkedShot.tsx).
+ * 왜 네 변을 다 쓰는지는 server/schema.py 의 Mark 주석에 있습니다.
  */
 export type Mark = {
-  /** 시작 높이 (0.0 ~ 1.0) */
+  /** 위쪽 (0.0 ~ 1.0) */
   top: number;
-  /** 끝 높이 (0.0 ~ 1.0, top 보다 큽니다) */
+  /** 아래쪽 (0.0 ~ 1.0, top 보다 큽니다) */
   bottom: number;
+  /** 왼쪽 (0.0 ~ 1.0) */
+  left: number;
+  /** 오른쪽 (0.0 ~ 1.0, left 보다 큽니다) */
+  right: number;
 };
 
 /** 조항 하나의 판정 결과 */
@@ -71,7 +76,7 @@ export type Clause = {
    */
   lawText: string;
   /**
-   * 사진 속 위치. 계약서에 그 내용이 없으면 null 입니다.
+   * 사진 속 자리. 계약서에 그 내용이 없으면 null 입니다.
    * 옛 서버는 이 값을 안 보내므로 undefined 일 수 있습니다.
    */
   mark?: Mark | null;
