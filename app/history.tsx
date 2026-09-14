@@ -138,46 +138,53 @@ export default function History() {
                   : verdictStyle.문제없음;
 
             return (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [
-                  styles.card,
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={() => open(item)}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.title || "이름 없는 계약서"}, ${formatDate(item.createdAt)}, ${
-                  issues > 0 ? `확인할 곳 ${issues}곳` : "이상 없음"
-                }`}
-              >
-                {/* 사진이 있으면 보여줍니다. 복사가 실패했으면 imagePath 가 빈 문자열입니다. */}
-                {item.imagePath ? (
-                  <Image
-                    source={{ uri: item.imagePath }}
-                    style={styles.thumb}
-                    resizeMode="cover"
-                    accessible={false}
-                  />
-                ) : (
-                  <View style={[styles.thumb, styles.thumbEmpty]}>
-                    <Text style={styles.thumbMark}>문서</Text>
+              /*
+               * 카드는 View 입니다. 예전에는 Pressable 이었는데, 안쪽의 ⋯ 버튼도
+               * Pressable 이라 눌리는 요소가 중첩됐습니다. 네이티브에서는 동작했지만
+               * 웹에서는 button 안에 button 이 들어가 에러가 납니다.
+               * 그래서 카드 본문과 ⋯ 을 형제로 나눴습니다.
+               */
+              <View key={item.id} style={styles.card}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.cardMain,
+                    pressed && styles.cardPressed,
+                  ]}
+                  onPress={() => open(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.title || "이름 없는 계약서"}, ${formatDate(item.createdAt)}, ${
+                    issues > 0 ? `확인할 곳 ${issues}곳` : "이상 없음"
+                  }`}
+                >
+                  {/* 사진이 있으면 보여줍니다. 복사가 실패했으면 imagePath 가 빈 문자열입니다. */}
+                  {item.imagePath ? (
+                    <Image
+                      source={{ uri: item.imagePath }}
+                      style={styles.thumb}
+                      resizeMode="cover"
+                      accessible={false}
+                    />
+                  ) : (
+                    <View style={[styles.thumb, styles.thumbEmpty]}>
+                      <Text style={styles.thumbMark}>문서</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardLabel} numberOfLines={1}>
+                      {item.title || "이름 없는 계약서"}
+                    </Text>
+                    <Text style={styles.cardDate}>
+                      {formatDate(item.createdAt)}
+                    </Text>
                   </View>
-                )}
 
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardLabel} numberOfLines={1}>
-                    {item.title || "이름 없는 계약서"}
-                  </Text>
-                  <Text style={styles.cardDate}>
-                    {formatDate(item.createdAt)}
-                  </Text>
-                </View>
-
-                <View style={[styles.pill, { backgroundColor: s.bg }]}>
-                  <Text style={[styles.pillText, { color: s.color }]}>
-                    {issues > 0 ? `${issues}곳` : "이상 없음"}
-                  </Text>
-                </View>
+                  <View style={[styles.pill, { backgroundColor: s.bg }]}>
+                    <Text style={[styles.pillText, { color: s.color }]}>
+                      {issues > 0 ? `${issues}곳` : "이상 없음"}
+                    </Text>
+                  </View>
+                </Pressable>
 
                 <Pressable
                   style={styles.more}
@@ -188,7 +195,7 @@ export default function History() {
                 >
                   <Text style={styles.moreMark}>⋯</Text>
                 </Pressable>
-              </Pressable>
+              </View>
             );
           })}
         </View>
@@ -340,12 +347,19 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.md,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.md,
-    padding: space.md,
     minHeight: minTouch,
+    // 눌림 배경이 둥근 모서리 밖으로 새지 않게
+    overflow: "hidden",
+  },
+  cardMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.md,
   },
   cardPressed: { backgroundColor: colors.surface },
 
