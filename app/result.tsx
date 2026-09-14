@@ -11,6 +11,7 @@ import { useState } from "react";
 import { router } from "expo-router";
 import {
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -60,9 +61,35 @@ function ClauseRow({ clause }: { clause: Clause }) {
   );
 }
 
+/**
+ * 결과 화면 위에 보여줄 사업장 이름.
+ *
+ * title 은 모델이 사진에서 읽은 값입니다. 잘못 읽으면 엉뚱한 말이 굵게 뜨는데,
+ * 사용자는 그게 확인된 정보라고 믿습니다. 회의에서 "상단 정보가 이상하다" 고
+ * 지적된 부분입니다.
+ *
+ * 그래서 사업장 이름으로 보기 어려운 값은 아예 감춥니다. 이름이 없어도 아래
+ * 판정 요약이 있으니 화면은 멀쩡합니다.
+ *
+ * 기록함에서 사용자가 직접 붙인 이름도 이 필드에 들어옵니다(최대 30자).
+ * 그건 감추면 안 되므로 길이 기준을 30자로 맞췄습니다.
+ */
+function placeName(title?: string): string {
+  const t = (title ?? "").replace(/\s+/g, " ").trim();
+  if (t === "") return "";
+  if (t.length > 30) return "";
+  // 문서 이름이나 양식 제목을 사업장 이름으로 읽어오는 경우가 있습니다.
+  if (/근로계약서|표준계약서|계약서$|근로자|사용자$/.test(t)) return "";
+  // 숫자와 기호만 남은 값은 읽기에 실패한 것입니다.
+  if (!/[가-힣A-Za-z]/.test(t)) return "";
+  return t;
+}
+
 export default function Result() {
   const result = useCurrent();
   const [showOk, setShowOk] = useState(false);
+  /** 사진을 크게 보는 중인지 */
+  const [zoom, setZoom] = useState(false);
 
   if (!result) {
     // 앱을 껐다 켜면 비어 있습니다.
@@ -81,121 +108,156 @@ export default function Result() {
   /** 옛 기록에는 notes 가 없습니다. 그때는 섹션을 숨깁니다 */
   const notes = result.notes ?? [];
   const illegal = countIllegal(result);
+  /** 사진에서 읽은 사업장 이름. 읽기에 실패한 값은 빈 문자열입니다 */
+  const place = placeName(result.title);
 
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <View style={styles.head}>
-        {/* 사진이 있으면 같이 보여줍니다. 어느 계약서의 결과인지 알 수 있게요. */}
-        {result.imagePath ? (
-          <Image
-            source={{ uri: result.imagePath }}
-            style={styles.shot}
-            resizeMode="cover"
-            accessible={false}
-          />
-        ) : null}
-
-        <View style={styles.headText}>
-          {result.title ? (
-            <Text style={styles.place} numberOfLines={1}>
-              {result.title}
-            </Text>
+    <>
+      <ScrollView contentContainerStyle={styles.screen}>
+        <View style={styles.head}>
+          {/* 사진이 있으면 같이 보여줍니다. 어느 계약서의 결과인지 알 수 있게요. */}
+          {result.imagePath ? (
+            <Pressable
+              onPress={() => setZoom(true)}
+              accessibilityRole="button"
+              accessibilityLabel="계약서 사진 크게 보기"
+            >
+              <Image
+                source={{ uri: result.imagePath }}
+                style={styles.shot}
+                resizeMode="cover"
+              />
+            </Pressable>
           ) : null}
-          <Text style={styles.title}>
-            {issues.length > 0
-              ? `${issues.length}곳을 확인해보세요`
-              : "문제를 찾지 못했어요"}
-          </Text>
-          <Text style={styles.headSub}>
-            {CHECK_ORDER.length}개 항목 중 {issues.length}개에 확인할 점이 있어요
-            {illegal > 0 ? ` (위법 소지 ${illegal}개)` : ""}
-          </Text>
-        </View>
-      </View>
 
-      {issues.length > 0 && (
-        <View style={styles.list}>
-          {issues.map((c) => (
-            <ClauseRow key={c.id} clause={c} />
-          ))}
+          <View style={styles.headText}>
+            {place !== "" ? (
+              <Text style={styles.place} numberOfLines={1}>
+                {place}
+              </Text>
+            ) : null}
+            <Text style={styles.title}>
+              {issues.length > 0
+                ? `${issues.length}곳을 확인해보세요`
+                : "문제를 찾지 못했어요"}
+            </Text>
+            <Text style={styles.headSub}>
+              {CHECK_ORDER.length}개 항목 중 {issues.length}개에 확인할 점이 있어요
+              {illegal > 0 ? ` (위법 소지 ${illegal}개)` : ""}
+            </Text>
+          </View>
         </View>
-      )}
 
-      {ok.length > 0 && (
-        <View style={styles.okBlock}>
+        {issues.length > 0 && (
+          <View style={styles.list}>
+            {issues.map((c) => (
+              <ClauseRow key={c.id} clause={c} />
+            ))}
+          </View>
+        )}
+
+        {ok.length > 0 && (
+          <View style={styles.okBlock}>
+            <Pressable
+              style={({ pressed }) => [styles.toggle, pressed && styles.cardPressed]}
+              onPress={() => setShowOk((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showOk }}
+              accessibilityLabel={`문제없는 항목 ${ok.length}개 ${showOk ? "접기" : "펼치기"}`}
+            >
+              <View style={styles.okDot} />
+              <Text style={styles.toggleText}>
+                문제없는 항목 {ok.length}개
+              </Text>
+              <Text style={styles.toggleMark}>{showOk ? "접기" : "보기"}</Text>
+            </Pressable>
+
+            {showOk && (
+              <View style={styles.list}>
+                {ok.map((c) => (
+                  <ClauseRow key={c.id} clause={c} />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {result.assumptions.length > 0 && (
+          <View style={styles.assume}>
+            {result.assumptions.map((a) => (
+              <Text key={a} style={styles.assumeText}>
+                · {a}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {/*
+          몰랐을 수도 있는 것 — 판정이 아니라 안내입니다.
+          배지를 붙이지 마세요. 위법소지처럼 보이면 사용자가 그걸 위반으로 믿습니다.
+          해당되는 조건이 없으면 섹션 자체가 안 보입니다. 빈 제목만 남기지 않습니다.
+          설계: FEATURE_hidden-conditions-design.md
+        */}
+        {notes.length > 0 && (
+          <View style={styles.notes}>
+            <Text style={styles.notesHead}>몰랐을 수도 있는 것</Text>
+
+            {notes.map((n) => (
+              <View key={n.id} style={styles.note}>
+                <Text style={styles.noteText}>{n.text}</Text>
+
+                {n.law !== "" && (
+                  <Text style={styles.noteLaw}>{n.law}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.disclaimer}>{copy.disclaimer}</Text>
+
+        <View style={styles.foot}>
           <Pressable
-            style={({ pressed }) => [styles.toggle, pressed && styles.cardPressed]}
-            onPress={() => setShowOk((v) => !v)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showOk }}
-            accessibilityLabel={`문제없는 항목 ${ok.length}개 ${showOk ? "접기" : "펼치기"}`}
+            style={styles.secondary}
+            onPress={() => router.push("/history")}
           >
-            <View style={styles.okDot} />
-            <Text style={styles.toggleText}>
-              문제없는 항목 {ok.length}개
-            </Text>
-            <Text style={styles.toggleMark}>{showOk ? "접기" : "보기"}</Text>
+            <Text style={styles.secondaryText}>내 기록</Text>
           </Pressable>
-
-          {showOk && (
-            <View style={styles.list}>
-              {ok.map((c) => (
-                <ClauseRow key={c.id} clause={c} />
-              ))}
-            </View>
-          )}
+          <Pressable
+            style={styles.secondary}
+            onPress={() => router.replace("/camera")}
+          >
+            <Text style={styles.secondaryText}>다시 찍기</Text>
+          </Pressable>
         </View>
-      )}
-
-      {result.assumptions.length > 0 && (
-        <View style={styles.assume}>
-          {result.assumptions.map((a) => (
-            <Text key={a} style={styles.assumeText}>
-              · {a}
-            </Text>
-          ))}
-        </View>
-      )}
+      </ScrollView>
 
       {/*
-        몰랐을 수도 있는 것 — 판정이 아니라 안내입니다.
-        배지를 붙이지 마세요. 위법소지처럼 보이면 사용자가 그걸 위반으로 믿습니다.
-        해당되는 조건이 없으면 섹션 자체가 안 보입니다. 빈 제목만 남기지 않습니다.
-        설계: FEATURE_hidden-conditions-design.md
+        사진 크게 보기. 판정이 이상할 때 원본을 눈으로 확인할 수 있어야 합니다.
+        흐리게 찍혀서 잘못 읽은 것인지, 정말 그렇게 적혀 있는 것인지 가려야 하니까요.
       */}
-      {notes.length > 0 && (
-        <View style={styles.notes}>
-          <Text style={styles.notesHead}>몰랐을 수도 있는 것</Text>
-
-          {notes.map((n) => (
-            <View key={n.id} style={styles.note}>
-              <Text style={styles.noteText}>{n.text}</Text>
-
-              {n.law !== "" && (
-                <Text style={styles.noteLaw}>{n.law}</Text>
-              )}
-            </View>
-          ))}
-        </View>
-      )}
-
-      <Text style={styles.disclaimer}>{copy.disclaimer}</Text>
-
-      <View style={styles.foot}>
+      <Modal
+        visible={zoom}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoom(false)}
+      >
         <Pressable
-          style={styles.secondary}
-          onPress={() => router.push("/history")}
+          style={styles.zoomBack}
+          onPress={() => setZoom(false)}
+          accessibilityRole="button"
+          accessibilityLabel="닫기"
         >
-          <Text style={styles.secondaryText}>내 기록</Text>
+          <Image
+            source={{ uri: result.imagePath }}
+            style={styles.zoomShot}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.zoomHint}>아무 곳이나 눌러 닫기</Text>
         </Pressable>
-        <Pressable
-          style={styles.secondary}
-          onPress={() => router.replace("/camera")}
-        >
-          <Text style={styles.secondaryText}>다시 찍기</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
 
@@ -213,6 +275,18 @@ const styles = StyleSheet.create({
   place: { fontSize: font.small, color: colors.mintText, fontWeight: weight.semibold },
   title: { fontSize: font.h2, fontWeight: weight.bold, color: colors.navy },
   headSub: { fontSize: font.small, color: colors.gray, lineHeight: 19 },
+
+  /* 사진 크게 보기 */
+  zoomBack: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: space.md,
+    gap: space.md,
+  },
+  zoomShot: { width: "100%", flex: 1 },
+  zoomHint: { fontSize: font.small, color: colors.grayLight },
 
   list: { gap: space.sm },
   card: {
