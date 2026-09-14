@@ -6,7 +6,12 @@
  *   2) 앱 안 카메라 — "사진 찍기" 를 누르면 전체 화면으로 열립니다.
  *      expo-camera 의 미리보기 위에 초록 가이드 네모를 겹칩니다. 시안 2번입니다
  *
- * 앱 안 카메라가 안 되면(권한 거부·기기 문제·웹) 폰 기본 카메라로 되돌아갑니다.
+ * 가이드 네모는 상태에 따라 색이 바뀝니다. 맞으면 초록, 아직이면 회색입니다.
+ * 무엇을 보고 판단하는지는 폰과 웹이 다릅니다 — lib/frameFit.ts 의 주석을 보세요.
+ *   웹: 미리보기를 실제로 읽어서 계약서가 네모 안에 들어왔는지
+ *   폰: 폰이 좌우로 기울었는지 (Expo Go 에서는 미리보기 프레임을 못 받습니다)
+ *
+ * 앱 안 카메라가 안 되면(권한 거부·기기 문제) 폰 기본 카메라로 되돌아갑니다.
  * 촬영은 모든 흐름의 입구라서, 막히면 앱 전체가 멈춥니다. 그래서 되돌아갈 길을
  * 남겨뒀습니다. lib/photo.ts 의 takePhoto() 가 그 경로입니다.
  *
@@ -30,11 +35,13 @@ import {
   View,
 } from "react-native";
 import { photoFromShot, pickPhoto, takePhoto } from "../lib/photo";
+import { useFrameFit } from "../lib/frameFit";
 import { clearCurrent, setCurrentPhoto } from "../lib/session";
 import { copy } from "../constants/copy";
 import {
   colors,
   font,
+  guideColor,
   minTouch,
   radius,
   screenPadding,
@@ -61,6 +68,15 @@ export default function Camera() {
   const [shooting, setShooting] = useState(false);
   const camRef = useRef<CameraView>(null);
   const [camPerm, requestCamPerm] = useCameraPermissions();
+
+  /*
+   * 실시간 안내. 웹에서는 아래 두 ref 로 <video> 와 가이드 네모의 자리를 찾아
+   * 미리보기를 읽습니다. 폰에서는 ref 를 쓰지 않고 기울기만 봅니다.
+   */
+  const camHostRef = useRef<View>(null);
+  const frameRef = useRef<View>(null);
+  const fit = useFrameFit(shooting, camHostRef, frameRef);
+  const guide = fit.state === "ok" ? guideColor.ok : guideColor.wait;
 
   /**
    * "사진 찍기" — 앱 안 카메라를 엽니다.
@@ -265,20 +281,27 @@ export default function Camera() {
       onRequestClose={() => setShooting(false)}
       statusBarTranslucent
     >
-      <View style={styles.camScreen}>
+      <View style={styles.camScreen} ref={camHostRef}>
         <CameraView ref={camRef} style={styles.camView} facing="back" />
 
         {/* 미리보기 위에 겹치는 것들. 터치는 통과시킵니다 */}
         <View style={styles.camOverlay} pointerEvents="none">
-          <Text style={styles.camHint}>
-            초록 네모 안에 계약서 전체가 들어오게 맞춰주세요
+          {/*
+            문구는 상태에 따라 바뀝니다. 색만으로 알려주면 색약인 사용자가
+            초록과 회색을 구분하지 못합니다. 판정 배지와 같은 원칙입니다.
+          */}
+          <Text
+            style={[styles.camHint, fit.state === "ok" && { color: guide }]}
+            accessibilityLiveRegion="polite"
+          >
+            {fit.hint}
           </Text>
 
-          <View style={styles.frame}>
-            <View style={[styles.corner, styles.cornerTL]} />
-            <View style={[styles.corner, styles.cornerTR]} />
-            <View style={[styles.corner, styles.cornerBL]} />
-            <View style={[styles.corner, styles.cornerBR]} />
+          <View ref={frameRef} style={[styles.frame, { borderColor: guide }]}>
+            <View style={[styles.corner, styles.cornerTL, { borderColor: guide }]} />
+            <View style={[styles.corner, styles.cornerTR, { borderColor: guide }]} />
+            <View style={[styles.corner, styles.cornerBL, { borderColor: guide }]} />
+            <View style={[styles.corner, styles.cornerBR, { borderColor: guide }]} />
           </View>
 
           <Text style={styles.camHintSub}>
@@ -301,6 +324,8 @@ export default function Camera() {
           <Pressable
             style={({ pressed }) => [
               styles.shutter,
+              // 셔터 테두리도 같이 바뀝니다. 손가락이 여기 있으니 제일 잘 보입니다
+              { borderColor: guide },
               pressed && styles.shutterPressed,
               busy !== null && styles.dim,
             ]}
@@ -431,7 +456,7 @@ const styles = StyleSheet.create({
     aspectRatio: 0.707,
     maxHeight: "70%",
     borderWidth: 2,
-    borderColor: colors.green,
+    // 색은 상태가 정합니다 (guideColor). 여기서는 두께만 정합니다
     borderRadius: radius.sm,
   },
 
@@ -462,7 +487,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
-    borderColor: colors.green,
+    // 색은 상태가 정합니다 (guideColor)
   },
   shutterPressed: { backgroundColor: colors.surface },
 
