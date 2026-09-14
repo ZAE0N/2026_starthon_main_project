@@ -87,12 +87,18 @@ def _matched(answers: Answers, facts: Facts) -> list[str]:
 
     if answers.employee_count == "under5":
         keys.append("under5")
-    elif answers.employee_count is None:
+    elif answers.employee_count == "over5":
+        keys.append("over5")
+    else:
         # 모르겠어요·미선택. 5인 이상 기준으로 보고 그 사실을 전제에 밝힙니다.
         keys.append("unknownCount")
 
     if answers.is_minor is True:
         keys.append("minor")
+    elif answers.is_minor is False:
+        keys.append("adult")
+    else:
+        keys.append("unknownAge")
 
     if facts.weekly_hours is not None and facts.weekly_hours < 15:
         keys.append("under15h")
@@ -101,6 +107,39 @@ def _matched(answers: Answers, facts: Facts) -> list[str]:
         keys.append("under1y")
 
     return keys
+
+
+def _apply_minor_hours(answers: Answers, facts: Facts, out: "Decision") -> None:
+    """
+    만 18세 미만의 근로시간은 기준이 더 엄격합니다. (근로기준법 제69조)
+
+    appliesTo 로는 표현할 수 없습니다. 그건 "적용되지 않으니 문제없음" 방향인데,
+    미성년은 반대로 더 좁은 한도를 적용해야 합니다.
+
+      1일 7시간, 주 35시간까지
+      합의하면 1일 1시간, 주 5시간까지 연장 가능 (그래서 최대 주 40시간)
+
+    모델은 성인 기준(주 40시간)으로 판정하므로, 주 35~40시간은 "문제없음" 으로
+    나올 수 있습니다. 미성년이면 그건 연장 합의가 있어야 성립합니다.
+
+    그래서 이렇게 나눕니다.
+      주 40시간 초과  -> 위법소지. 연장 한도까지 써도 넘습니다
+      주 35시간 초과  -> 확인필요. 연장 합의가 있는지 계약서를 봐야 합니다
+
+    이미 위법소지로 판정된 항목은 건드리지 않습니다. 낮추는 방향으로는
+    이 규칙을 쓰지 않습니다.
+    """
+    if answers.is_minor is not True:
+        return
+    if facts.weekly_hours is None:
+        return
+    if out.overrides.get("hours") == "위법소지":
+        return
+
+    if facts.weekly_hours > 40:
+        out.overrides["hours"] = "위법소지"
+    elif facts.weekly_hours > 35:
+        out.overrides["hours"] = "확인필요"
 
 
 def decide(answers: Answers, facts: Facts) -> Decision:
@@ -138,6 +177,8 @@ def decide(answers: Answers, facts: Facts) -> Decision:
         for check_id in cond.get("appliesTo") or []:
             # 이미 덮어쓴 항목은 그대로 둔다. 조건이 겹쳐도 결과가 흔들리지 않게.
             out.overrides.setdefault(str(check_id), "문제없음")
+
+    _apply_minor_hours(answers, facts, out)
 
     # 전제를 하나라도 만들었으면 조건과 무관한 문구도 붙여서 전체를 만든다.
     # 여기서 laws.json 의 assumptions 를 쓰지 않는다. _base_assumptions() 주석을 보라.
