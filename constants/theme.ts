@@ -87,6 +87,23 @@ export const screenPadding = space.lg;
 export const minTouch = 44;
 
 /**
+ * 사진 위에 긋는 형광펜 띠 색. (components/MarkedShot.tsx)
+ *
+ * 판정 3색을 그대로 쓸 수 없습니다. 사진 위에 올리는 색이라 불투명하면 계약서
+ * 글자가 가려지고, 너무 연하면 띠가 안 보입니다. 알파를 넣은 별도 값입니다.
+ * 여기만 rgba 를 쓰는 이유이고, 알파가 필요 없는 곳에서는 위 colors 를 쓰세요.
+ *
+ * band 는 칠하는 색, edge 는 띠 아래에 긋는 선입니다. 선이 있으면 어디까지가
+ * 표시인지 분명해집니다.
+ */
+export const markStyle: Record<Verdict, { band: string; edge: string }> = {
+  위법소지: { band: "rgba(198, 52, 47, 0.26)", edge: colors.red },
+  확인필요: { band: "rgba(245, 176, 30, 0.34)", edge: colors.amber },
+  // 문제없음은 사진에 표시하지 않습니다. 타입을 채우기 위해 둔 값입니다.
+  문제없음: { band: "rgba(30, 122, 66, 0.18)", edge: colors.green },
+};
+
+/**
  * 판정별 색과 표시 문구.
  * 사용: const s = verdictStyle[clause.verdict];
  */

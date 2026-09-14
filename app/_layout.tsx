@@ -54,6 +54,18 @@ export default function RootLayout() {
             animation: "fade",
           }}
         />
+        {/*
+          채점된 계약서. 분석중에서 여기로 갈아타므로 fade 입니다.
+          뒤로 가면 분석이 다시 도므로 막습니다.
+        */}
+        <Stack.Screen
+          name="marked"
+          options={{
+            title: "표시된 계약서",
+            gestureEnabled: false,
+            animation: "fade",
+          }}
+        />
         {/* 분석중에서 갈아타므로 결과 화면도 fade 입니다 */}
         <Stack.Screen
           name="result"
