@@ -16,6 +16,7 @@ import time
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -33,6 +34,28 @@ logging.basicConfig(
 log = logging.getLogger("albacheck")
 
 app = FastAPI(title="albacheck", docs_url=None, redoc_url=None)
+
+# ── 브라우저에서 부를 수 있게 (CORS) ──────────────────────────────
+#
+# 폰(네이티브)에는 필요 없습니다. CORS 는 브라우저만 적용하는 규칙입니다.
+# 그런데 웹으로 띄워 확인할 때는 브라우저가 preflight(OPTIONS)를 먼저 보내고,
+# 서버가 405 를 주면 요청을 아예 취소합니다. 그러면 앱에는
+# "인터넷 연결을 확인해 주세요" 가 뜹니다. 인터넷은 정상인데도요.
+#
+# allow_origins 를 * 로 두는 이유:
+#   Metro 주소가 네트워크마다 바뀝니다(localhost, 10.x.x.x, *.exp.direct).
+#   목록으로 관리하면 주소가 바뀔 때마다 재배포해야 합니다.
+#
+# 이게 보안을 약하게 만들지 않습니다. CORS 는 브라우저에만 걸리는 제약이라
+# curl 이나 스크립트는 원래부터 그냥 부를 수 있었습니다. 실제 방어선은
+# X-App-Token 검사와 OpenAI 대시보드의 지출 한도입니다. (PROGRESS.md R7)
+# 쿠키를 쓰지 않으므로 allow_credentials 는 기본값(False)으로 둡니다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-App-Token"],
+)
 
 
 @app.on_event("startup")
