@@ -99,10 +99,26 @@ export default function Analyzing() {
   /** 다시 시도할 때 분석을 한 번 더 돌리기 위한 값 */
   const [attempt, setAttempt] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  /** 지금 보이는 카드의 자리 번호 (0부터, cards 기준) */
   const [factIndex, setFactIndex] = useState(0);
-  const fade = useRef(new Animated.Value(1)).current;
-  /** 진행 막대. 0 → 0.9 로 움직입니다. 아래 useEffect 주석을 보세요 */
-  const progress = useRef(new Animated.Value(0)).current;
+  /** 손으로 한 번 넘겼는지. 넘긴 뒤에는 자동 전환을 멈춥니다 */
+  const [manual, setManual] = useState(false);
+  /** 카드 한 장의 너비. 화면 폭을 재서 넣습니다 (페이지 단위로 넘기려면 필요) */
+  const [cardWidth, setCardWidth] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  /**
+   * 이번에 먼저 보여줄 카드.
+   * 스크롤 위치를 옮기는 대신 카드 순서를 돌려서 넣습니다. 그러면 항상 맨
+   * 왼쪽에서 시작하므로 처음 위치를 맞추는 코드가 필요 없습니다.
+   */
+  const startIndex = useRef(nextStart).current;
+  const cards = FACTS.map((_, k) => FACTS[(startIndex + k) % FACTS.length]);
+
+  /* 다음에 이 화면이 열릴 때는 그다음 카드부터 보이게 해 둡니다 */
+  useEffect(() => {
+    nextStart = (nextStart + 1) % FACTS.length;
+  }, []);
 
   /* 분석 — 이 흐름은 건드리지 않습니다 */
   useEffect(() => {
@@ -143,53 +159,18 @@ export default function Analyzing() {
     return () => clearInterval(timer);
   }, [errorKind, attempt]);
 
-  /*
-   * 진행 막대 — 10초에 걸쳐 끊기지 않고 차오릅니다.
-   *
-   * 0.9(90%)까지만 갑니다. 10초가 지나도 응답이 안 오면 막대가 끝에 붙어
-   * 멈춘 것처럼 보이는데, 90% 에서 기다리면 "아직 진행 중" 으로 읽힙니다.
-   * 실제로는 8~9초에 결과 화면으로 넘어가서 끝을 볼 일이 거의 없습니다.
-   *
-   * Easing.out 을 쓰는 이유: 초반이 빠르면 같은 시간도 짧게 느껴집니다.
-   * useNativeDriver 는 false 여야 합니다. width 는 네이티브 드라이버로 못 돌립니다.
-   * 10초에 한 번 도는 애니메이션이라 성능 문제는 없습니다.
-   */
+  /* 정보 카드 자동 전환 — 손으로 넘긴 뒤에는 멈춥니다 */
   useEffect(() => {
-    if (errorKind) return;
+    if (errorKind || manual || cardWidth === 0) return;
 
-    progress.setValue(0);
-    const anim = Animated.timing(progress, {
-      toValue: 0.9,
-      duration: PROGRESS_MS,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
-    });
-    anim.start();
-
-    return () => anim.stop();
-  }, [errorKind, attempt, progress]);
-
-  /* 정보 카드 넘기기 */
-  useEffect(() => {
-    if (errorKind) return;
-
-    const timer = setInterval(() => {
-      Animated.timing(fade, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setFactIndex((i) => (i + 1) % FACTS.length);
-        Animated.timing(fade, {
-          toValue: 1,
-          duration: 260,
-          useNativeDriver: true,
-        }).start();
-      });
+    const timer = setTimeout(() => {
+      const next = (factIndex + 1) % cards.length;
+      setFactIndex(next);
+      scrollRef.current?.scrollTo({ x: next * cardWidth, animated: true });
     }, FACT_INTERVAL);
 
-    return () => clearInterval(timer);
-  }, [errorKind, attempt, fade]);
+    return () => clearTimeout(timer);
+  }, [errorKind, manual, cardWidth, attempt, factIndex, cards.length]);
 
   /* ---------------------------------------------------------------- */
   /* 에러 화면                                                          */
@@ -242,7 +223,7 @@ export default function Analyzing() {
               setErrorKind(null);
               setElapsed(0);
               setFactIndex(0);
-              fade.setValue(1);
+              setManual(false);
               setAttempt((n) => n + 1);
             }}
             accessibilityRole="button"
@@ -275,7 +256,6 @@ export default function Analyzing() {
 
   const slow = elapsed >= SLOW_AFTER;
   const stage = lastPassed(elapsed);
-  const fact = FACTS[factIndex];
 
   return (
     <View style={styles.screen}>
@@ -289,38 +269,57 @@ export default function Analyzing() {
           {slow ? "거의 다 됐어요. 화면을 닫지 말고 기다려 주세요." : STAGES[stage].label}
         </Text>
 
-        <Animated.View style={[styles.fact, { opacity: fade }]}>
-          <Text style={styles.factValue}>{fact.value}</Text>
-          <Text style={styles.factText}>{fact.text}</Text>
-          <Text style={styles.factLaw}>{fact.law}</Text>
-        </Animated.View>
-
-        {/*
-          진행 막대. 값은 progress 가 들고 있어서 화면을 다시 그리지 않고 움직입니다.
-          읽어주는 기기에는 경과 시간으로 대략의 퍼센트를 알려줍니다.
-        */}
         <View
-          style={styles.track}
+          style={styles.factArea}
+          onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
+        >
+          {cardWidth > 0 && (
+            <ScrollView
+              ref={scrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScrollBeginDrag={() => setManual(true)}
+              onMomentumScrollEnd={(e) => {
+                const raw = Math.round(e.nativeEvent.contentOffset.x / cardWidth);
+                setFactIndex(Math.min(cards.length - 1, Math.max(0, raw)));
+              }}
+            >
+              {cards.map((f) => (
+                <View
+                  key={f.law}
+                  style={[styles.factPage, { width: cardWidth }]}
+                >
+                  <Text style={styles.factValue}>{f.value}</Text>
+                  <Text style={styles.factText}>{f.text}</Text>
+                  <Text style={styles.factLaw}>{f.law}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        <View style={styles.dots}>
+          {cards.map((f, i) => (
+            <View
+              key={f.law}
+              style={[styles.dot, i === factIndex && styles.dotOn]}
+            />
+          ))}
+        </View>
+
+        <View
+          style={styles.bars}
           accessible
           accessibilityRole="progressbar"
           accessibilityLabel="분석 진행 중"
-          accessibilityValue={{
-            min: 0,
-            max: 100,
-            now: Math.min(90, Math.round((elapsed / (PROGRESS_MS / 1000)) * 90)),
-          }}
         >
-          <Animated.View
-            style={[
-              styles.fill,
-              {
-                width: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", "100%"],
-                }),
-              },
-            ]}
-          />
+          {STAGES.map((s, i) => (
+            <View
+              key={s.at}
+              style={[styles.bar, i <= stage && styles.barOn]}
+            />
+          ))}
         </View>
       </View>
     </View>
@@ -361,11 +360,25 @@ const styles = StyleSheet.create({
   },
 
   /* 기다리는 동안 보여줄 정보 (시안 3번의 통계 카드 자리) */
-  fact: {
+  factArea: {
+    alignSelf: "stretch",
     marginTop: space.xl,
+    minHeight: 128,
+    justifyContent: "center",
+  },
+  factPage: {
     paddingHorizontal: space.md,
     alignItems: "center",
+    justifyContent: "center",
   },
+  dots: { flexDirection: "row", gap: space.sm, marginTop: space.md },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.line,
+  },
+  dotOn: { backgroundColor: colors.mint },
   factValue: {
     fontSize: font.h1,
     fontWeight: weight.bold,
@@ -387,20 +400,14 @@ const styles = StyleSheet.create({
   },
 
   /* 진행 막대 */
-  track: {
-    width: 140,
-    height: 4,
-    marginTop: space.xl,
+  bars: { flexDirection: "row", gap: space.xs, marginTop: space.xl },
+  bar: {
+    width: 22,
+    height: 3,
     borderRadius: radius.sm,
     backgroundColor: colors.line,
-    // 채움이 둥근 모서리 밖으로 새지 않게 합니다
-    overflow: "hidden",
   },
-  fill: {
-    height: "100%",
-    borderRadius: radius.sm,
-    backgroundColor: colors.mint,
-  },
+  barOn: { backgroundColor: colors.mint },
 
   /* 에러 표시 */
   badge: {
