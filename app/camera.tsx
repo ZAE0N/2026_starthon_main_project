@@ -16,10 +16,7 @@
 
 import { useState } from "react";
 import { router } from "expo-router";
-<<<<<<< HEAD
 import * as ImagePicker from "expo-image-picker";
-=======
->>>>>>> origin/develop
 import {
   ActivityIndicator,
   Linking,
@@ -29,11 +26,7 @@ import {
   Text,
   View,
 } from "react-native";
-<<<<<<< HEAD
 import { pickPhoto, takePhoto } from "../lib/photo";
-=======
-import { getPhotoPermission, pickPhoto, takePhoto } from "../lib/photo";
->>>>>>> origin/develop
 import { clearCurrent, setCurrentPhoto } from "../lib/session";
 import { copy } from "../constants/copy";
 import {
@@ -70,17 +63,10 @@ export default function Camera() {
       const photo = source === "camera" ? await takePhoto() : await pickPhoto();
 
       if (!photo) {
-<<<<<<< HEAD
         // null 은 "취소" 와 "권한 거부" 두 가지입니다. lib/photo.ts 가 이유를
         // 돌려주지 않아서, 권한 상태를 직접 한 번 더 읽어 구분합니다.
         // (취소한 사람에게 권한 안내를 띄우면 더 헷갈립니다.)
         if (!(await hasPermission(source))) setDenied(source);
-=======
-	// null 은 "취소" 와 "권한 거부" 두 가지입니다.
-        // 권한 상태를 한 번 더 읽어 구분합니다.
-        // (취소한 사람에게 권한 안내를 띄우면 더 헷갈립니다.)
-        if (!(await getPhotoPermission(source))) setDenied(source);
->>>>>>> origin/develop
         setBusy(null);
         return;
       }
