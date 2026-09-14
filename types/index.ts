@@ -58,6 +58,38 @@ export type Clause = {
   };
 };
 
+/**
+ * 사진을 보내기 전에 사용자가 답한 조건. (app/camera.tsx)
+ *
+ * 답에 따라 적용되는 법이 달라집니다. 예를 들어 야간 가산수당은
+ * 상시근로자 5인 이상 사업장에만 적용됩니다.
+ * 모르거나 안 골랐으면 null 이고, 그때는 5인 이상·만 18세 이상 기준으로 봅니다.
+ * 미성년 기준이 더 엄격해서, 성인인데 그 기준으로 보면 없는 위법을 만들어냅니다.
+ *
+ * 설계: FEATURE_hidden-conditions-design.md
+ */
+export type Workplace = {
+  /** 상시근로자 수 */
+  employeeCount: "under5" | "over5" | null;
+  /** 만 18세 미만인지 */
+  isMinor: boolean | null;
+};
+
+/**
+ * "몰랐을 수도 있는 것" 한 덩어리.
+ *
+ * 판정이 아니라 안내입니다. 결과 화면에서 배지를 붙이지 마세요.
+ * 위법소지처럼 보이면 사용자가 그걸 위반으로 믿습니다.
+ */
+export type Note = {
+  /** 어떤 조건 때문에 나온 안내인지 */
+  id: string;
+  /** 본문. 서버가 3줄 이내로 보냅니다 */
+  text: string;
+  /** 근거 조문. 없으면 빈 문자열 */
+  law: string;
+};
+
 /** 계약서 한 장의 검진 결과 */
 export type InspectResult = {
   id: string;
@@ -75,6 +107,10 @@ export type InspectResult = {
   basedOn: string;
   /** 기록함에 표시할 이름. 사용자가 나중에 붙임 */
   title?: string;
+  /** 사진을 보내기 전에 답한 조건. 옛 기록에는 없습니다 */
+  workplace?: Workplace;
+  /** "몰랐을 수도 있는 것". 해당되는 조건이 없으면 빈 배열 */
+  notes?: Note[];
 };
 
 /**

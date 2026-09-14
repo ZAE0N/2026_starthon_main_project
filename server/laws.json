@@ -30,6 +30,11 @@
     "사진에 보이는 내용만 확인했어요. 뒷장이 있다면 따로 확인해 주세요."
   ],
 
+  "_assumptionsBaseNote": "조건과 무관하게 항상 붙는 전제. conditions 를 채운 뒤에는 위 assumptions 에서 '만 18세 이상, 5인 이상' 줄을 지우세요. 조건별 전제와 같이 나오면 서로 모순됩니다.",
+  "assumptionsBase": [
+    "사진에 보이는 내용만 확인했어요. 뒷장이 있다면 따로 확인해 주세요."
+  ],
+
   "checks": [
     {
       "id": "contractType",

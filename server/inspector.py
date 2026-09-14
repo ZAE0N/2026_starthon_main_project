@@ -31,8 +31,17 @@ try:
 except ImportError:  # pragma: no cover
     HEIC_OK = False
 
+import conditions
 import laws
-from schema import CHECK_LABELS, CHECK_ORDER, VERDICTS, Clause, InspectResponse, Scripts
+from schema import (
+    CHECK_LABELS,
+    CHECK_ORDER,
+    VERDICTS,
+    Clause,
+    InspectResponse,
+    Note,
+    Scripts,
+)
 
 log = logging.getLogger("albacheck")
 
@@ -172,6 +181,7 @@ OUTPUT_SHAPE = """{
   "facts": {
     "hourlyWageKrw": 숫자 또는 null,
     "contractTermMonths": 숫자 또는 null,
+    "weeklySchedHours": 숫자 또는 null,
     "hasProbationClause": true/false,
     "probationReducesWage": true/false,
     "probationRatePercent": 숫자 또는 null,
@@ -196,6 +206,8 @@ OUTPUT_SHAPE = """{
 - facts 는 계약서에서 읽은 사실만 적습니다. 판단하지 말고, 안 적혀 있으면 null 이나 "unknown".
   simpleLabor 는 주방보조·조리보조·청소·주유·배달·경비·단순포장운반 같은 단순노무면 "yes",
   사무·판매·상담처럼 분명히 아니면 "no", 직종을 알 수 없으면 "unknown".
+  weeklySchedHours 는 주 소정근로시간입니다. 주 며칠 × 하루 몇 시간으로 적혀 있으면
+  곱해서 넣고, 휴게시간은 빼세요. 계산할 수 없으면 null 입니다.
 - wage 와 probation 항목은 scripts 를 항상 채웁니다. 문제없어 보여도 채우세요.
 
 [길이 제한] — 넘기면 화면에서 잘리고, 응답도 느려집니다
@@ -412,7 +424,10 @@ def recompute(clauses: list[Clause], facts: dict[str, Any]) -> None:
             c.scripts = Scripts(soft="", firm="")
 
 
-def build_result(parsed: dict[str, Any]) -> InspectResponse:
+def build_result(
+    parsed: dict[str, Any],
+    answers: conditions.Answers | None = None,
+) -> InspectResponse:
     if parsed.get("isContract") is False:
         raise NotContractError("모델이 근로계약서가 아니라고 판단")
     if parsed.get("readable") is False:
@@ -426,7 +441,28 @@ def build_result(parsed: dict[str, Any]) -> InspectResponse:
     clauses = [_to_clause(by_id.get(cid), cid) for cid in CHECK_ORDER]
 
     facts = parsed.get("facts")
-    recompute(clauses, facts if isinstance(facts, dict) else {})
+    facts = facts if isinstance(facts, dict) else {}
+    recompute(clauses, facts)
+
+    # ── 사용자가 답한 조건 반영 ──────────────────────────────────────
+    # 규칙은 server/conditions.py 와 laws.json 의 conditions 에 있습니다. (담당: 김종현)
+    # laws.json 에 conditions 가 없으면 빈 Decision 이 와서 아래는 전부 무시됩니다.
+    # 그때 결과는 지금과 완전히 같습니다.
+    decision = conditions.decide(
+        answers or conditions.Answers(),
+        conditions.Facts(
+            weekly_hours=_num(facts.get("weeklySchedHours")),
+            contract_months=_num(facts.get("contractTermMonths")),
+        ),
+    )
+
+    # recompute 뒤에 덮어씁니다. 5인 미만처럼 법이 아예 적용되지 않는 경우는
+    # 계산 결과보다 우선합니다. 적용되지 않으면 위법이라고 말할 수 없습니다.
+    if decision.overrides:
+        for c in clauses:
+            verdict = decision.overrides.get(c.id)
+            if verdict in VERDICTS:
+                c.verdict = verdict  # type: ignore[assignment]
 
     # ── 앱의 숨은 규칙 (lib/api.ts:191-194) ──────────────────────────
     # 8개가 전부 "확인필요" 이면서 인용된 원문이 하나도 없으면, 앱은 200 을 받아도
@@ -449,18 +485,23 @@ def build_result(parsed: dict[str, Any]) -> InspectResponse:
         id=str(int(now.timestamp() * 1000)),
         createdAt=now.isoformat(timespec="seconds"),
         basedOn=laws.based_on(),
-        assumptions=laws.assumptions(),
+        # conditions 가 전제를 만들었으면 그것을 쓰고, 없으면 laws.json 의 고정값을 씁니다.
+        assumptions=decision.assumptions or laws.assumptions(),
         clauses=clauses,
         title=title,
+        notes=[Note(**n) for n in decision.notes],
     )
 
 
-def inspect(image_base64: str) -> InspectResponse:
+def inspect(
+    image_base64: str,
+    answers: conditions.Answers | None = None,
+) -> InspectResponse:
     t0 = time.monotonic()
     normalized = normalize_image(image_base64)
     t1 = time.monotonic()
     parsed = _ask_openai(normalized)
     t2 = time.monotonic()
-    result = build_result(parsed)
+    result = build_result(parsed, answers)
     log.info("판정 완료 (사진정리 %.1fs, 모델 %.1fs)", t1 - t0, t2 - t1)
     return result

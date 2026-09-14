@@ -40,14 +40,36 @@ VERDICTS: set[str] = {"위법소지", "확인필요", "문제없음"}
 
 
 class InspectRequest(BaseModel):
-    """앱이 보내는 것. 필드는 이거 하나뿐입니다. (lib/api.ts:161)"""
+    """
+    앱이 보내는 것. (lib/api.ts)
+
+    employeeCount 와 isMinor 는 사진을 보내기 전에 사용자가 답한 것입니다.
+    모르거나 안 골랐으면 None 이고, 그때는 5인 이상·만 18세 이상 기준으로 봅니다.
+    설계는 FEATURE_hidden-conditions-design.md 를 보세요.
+
+    ⚠ 두 필드에 기본값이 반드시 있어야 합니다. 필수로 만들면 이 필드를 모르는
+      옛 번들이 남아 있는 폰에서 요청이 400 으로 막힙니다.
+    """
 
     imageBase64: str = Field(min_length=1)
+    employeeCount: Literal["under5", "over5"] | None = None
+    isMinor: bool | None = None
 
 
 class Scripts(BaseModel):
     soft: str = ""
     firm: str = ""
+
+
+class Note(BaseModel):
+    """
+    "몰랐을 수도 있는 것" 한 덩어리. 판정이 아니라 안내입니다.
+    앱은 이걸 배지 없이 그립니다. (app/result.tsx)
+    """
+
+    id: str
+    text: str
+    law: str = ""
 
 
 class Clause(BaseModel):
@@ -74,3 +96,5 @@ class InspectResponse(BaseModel):
     assumptions: list[str]
     clauses: list[Clause]
     title: str | None = None
+    #: 해당되는 조건이 없으면 빈 배열. 앱은 빈 배열이면 섹션을 숨깁니다.
+    notes: list[Note] = []

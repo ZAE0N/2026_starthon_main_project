@@ -101,7 +101,15 @@ def health() -> dict[str, str]:
 @app.post("/inspect", response_model=InspectResponse, response_model_exclude_none=True)
 def inspect(body: InspectRequest, x_app_token: str | None = Header(default=None)):
     _check_token(x_app_token)
-    return inspector.inspect(body.imageBase64)
+    # 사진 보내기 전에 사용자가 답한 조건. 안 보내면 둘 다 None 이고
+    # 5인 이상·만 18세 이상 기준으로 봅니다. (server/conditions.py)
+    return inspector.inspect(
+        body.imageBase64,
+        inspector.conditions.Answers(
+            employee_count=body.employeeCount,
+            is_minor=body.isMinor,
+        ),
+    )
 
 
 @app.exception_handler(InspectError)

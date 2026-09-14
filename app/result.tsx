@@ -78,6 +78,8 @@ export default function Result() {
 
   const issues = getIssues(result);
   const ok = getOk(result);
+  /** 옛 기록에는 notes 가 없습니다. 그때는 섹션을 숨깁니다 */
+  const notes = result.notes ?? [];
   const illegal = countIllegal(result);
 
   return (
@@ -151,6 +153,28 @@ export default function Result() {
             <Text key={a} style={styles.assumeText}>
               · {a}
             </Text>
+          ))}
+        </View>
+      )}
+
+      {/*
+        몰랐을 수도 있는 것 — 판정이 아니라 안내입니다.
+        배지를 붙이지 마세요. 위법소지처럼 보이면 사용자가 그걸 위반으로 믿습니다.
+        해당되는 조건이 없으면 섹션 자체가 안 보입니다. 빈 제목만 남기지 않습니다.
+        설계: FEATURE_hidden-conditions-design.md
+      */}
+      {notes.length > 0 && (
+        <View style={styles.notes}>
+          <Text style={styles.notesHead}>몰랐을 수도 있는 것</Text>
+
+          {notes.map((n) => (
+            <View key={n.id} style={styles.note}>
+              <Text style={styles.noteText}>{n.text}</Text>
+
+              {n.law !== "" && (
+                <Text style={styles.noteLaw}>{n.law}</Text>
+              )}
+            </View>
           ))}
         </View>
       )}
@@ -245,6 +269,23 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   assumeText: { fontSize: font.small, color: colors.navySoft, lineHeight: 20 },
+  notes: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: space.md,
+    gap: space.md,
+  },
+  notesHead: {
+    fontSize: font.small,
+    fontWeight: weight.semibold,
+    color: colors.navy,
+  },
+  note: { gap: space.xs },
+  noteText: { fontSize: font.small, color: colors.navySoft, lineHeight: 21 },
+  noteLaw: { fontSize: font.tiny, color: colors.gray },
+
   disclaimer: {
     fontSize: font.tiny,
     color: colors.gray,
