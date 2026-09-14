@@ -192,8 +192,11 @@ OUTPUT_SHAPE = """{
     "jobDescription": "직종 (20자 이내, 모르면 빈 문자열)",
     "simpleLabor": "yes" 또는 "no" 또는 "unknown",
     "dailyWorkHours": 숫자 또는 null,
+    "dailyShiftHours": 숫자 또는 null,
+    "workDaysPerWeek": 숫자 또는 null,
     "breakMinutes": 숫자 또는 null,
-    "weeklyPaidHoliday": "stated" 또는 "excluded" 또는 "none" 또는 "unknown"
+    "weeklyPaidHoliday": "stated" 또는 "excluded" 또는 "none" 또는 "unknown",
+    "statedItems": ["wage", "hours", "weeklyHoliday", "annualLeave"] 중 적혀 있는 것만
   },
   "clauses": [
     {
@@ -214,9 +217,15 @@ OUTPUT_SHAPE = """{
   사무·판매·상담처럼 분명히 아니면 "no", 직종을 알 수 없으면 "unknown".
   weeklySchedHours 는 주 소정근로시간입니다. 주 며칠 × 하루 몇 시간으로 적혀 있으면
   곱해서 넣고, 휴게시간은 빼세요. 계산할 수 없으면 null 입니다.
-  dailyWorkHours 는 1일 소정근로시간(휴게 제외)입니다. 계약서에 "1일 소정근로시간 N시간"
-  이라고 적혀 있으면 그 숫자를 그대로 넣고, 시작·끝 시각만 있으면 그 차이에서 휴게시간을
-  뺀 값을 넣습니다. 계산할 수 없으면 null 입니다.
+  dailyWorkHours 는 1일 소정근로시간입니다.
+  ⚠ 계약서에 "1일 소정근로시간 N시간" 이라고 **적혀 있으면 반드시 그 숫자를 그대로** 넣으세요.
+    시작·끝 시각으로 다시 계산하지 마세요. 적힌 숫자와 시각 계산이 어긋나는 계약서가 많은데,
+    적힌 숫자가 당사자가 합의한 값입니다. 적혀 있지 않을 때만 null 입니다.
+  dailyShiftHours 는 출근부터 퇴근까지의 길이입니다(휴게시간 포함).
+  "09:00 ~ 19:00" 이면 10 입니다. 자정을 넘기면 넘겨서 계산합니다("22:00 ~ 06:00" 이면 8).
+  시각이 안 적혀 있으면 null 입니다.
+  workDaysPerWeek 는 주 며칠 일하는지입니다. "매주 월, 화, 수, 목, 금" 이면 5,
+  "주 5일" 이면 5 입니다. 알 수 없으면 null 입니다.
   breakMinutes 는 하루 휴게시간을 분으로 적습니다. "12:00 ~ 12:30" 이면 30 입니다.
   휴게시간 언급이 아예 없으면 null 입니다 (0 이 아닙니다).
   weeklyPaidHoliday 는 주휴일·주휴수당이 어떻게 적혀 있는지입니다.
@@ -224,6 +233,12 @@ OUTPUT_SHAPE = """{
     "excluded" : 주휴수당을 지급하지 않는다 / 시급에 포함되어 있다고 적혀 있음
     "none"     : 주휴일 요일만 있거나 아예 언급이 없음 (요일만 적힌 것은 여기입니다)
     "unknown"  : 알 수 없음
+  statedItems 는 근로기준법 제17조가 서면에 적으라고 한 것 중 **실제로 적혀 있는** 것입니다.
+    "wage"          : 임금(시급·월급 등)
+    "hours"         : 소정근로시간
+    "weeklyHoliday" : 주휴일
+    "annualLeave"   : 연차유급휴가 ("근로기준법에서 정하는 바에 따라" 같은 문구도 적힌 것입니다)
+  적혀 있는 것만 배열에 넣습니다. 판단하지 말고 적혀 있는지만 보세요.
 - wage 와 probation 항목은 scripts 를 항상 채웁니다. 문제없어 보여도 채우세요.
 
 [길이 제한] — 넘기면 화면에서 잘리고, 응답도 느려집니다
@@ -723,14 +738,14 @@ def _break_needed(daily_hours: float) -> int:
 
 def recompute_time(clauses: list[Clause], facts: dict[str, Any]) -> None:
     """
-    근로시간·휴게시간·주휴수당을 숫자로 다시 계산합니다.
+    근로시간·휴게시간·주휴수당·명시항목을 사실에서 다시 계산합니다.
 
     왜 필요한가:
       같은 파일을 3번씩 보내 재봤더니 32개 판정 중 1개가 흔들렸습니다.
       주휴수당이 "문제없음" 두 번, "확인필요" 한 번이었습니다. 사용자에게는
       같은 계약서를 넣었는데 결과가 달라지는 것으로 보입니다.
 
-      셋 다 숫자만 보면 답이 나오는 항목입니다. recompute() 가 최저임금에 쓰는
+      넷 다 사실만 보면 답이 나오는 항목입니다. recompute() 가 최저임금에 쓰는
       방식(모델은 사실만, 판정은 코드)을 여기에도 적용합니다.
 
     ⚠ 원칙: 코드는 **위로만** 덮습니다.
@@ -747,8 +762,34 @@ def recompute_time(clauses: list[Clause], facts: dict[str, Any]) -> None:
     by_id = {c.id: c for c in clauses}
 
     weekly = _num(facts.get("weeklySchedHours"))
-    daily = _num(facts.get("dailyWorkHours"))
     brk = _num(facts.get("breakMinutes"))
+
+    # 하루 근로시간 — 적힌 값과 시각 계산 중 **큰 쪽**을 씁니다.
+    #
+    # 22:00~06:00 에 휴게 30분이고 "1일 소정근로시간 8시간" 이라고 적힌 계약서가
+    # 있었습니다. 시각으로 계산하면 7.5시간(휴게 30분은 근로가 아님)이라 휴게
+    # 30분으로 충분하고, 적힌 8시간을 쓰면 1시간이 필요해 위법입니다.
+    # 모델이 둘 중 무엇을 고르는지에 따라 판정이 뒤집혔습니다(실측 3회 중 1회).
+    #
+    # 큰 쪽을 쓰는 이유: 계약서에 적힌 소정근로시간이 당사자가 합의한 값이고,
+    # 애매하면 근로자에게 유리한 쪽으로 봅니다.
+    stated = _num(facts.get("dailyWorkHours"))
+    shift = _num(facts.get("dailyShiftHours"))
+    from_shift = None
+    if shift is not None:
+        from_shift = shift - (brk / 60 if brk is not None else 0)
+
+    # 주 소정근로시간 ÷ 주 근무일수 도 후보에 넣습니다. 실측에서 주 단위 값이
+    # 가장 안정적으로 읽혔고(3회 모두 40시간), 하루치보다 덜 흔들립니다.
+    days = _num(facts.get("workDaysPerWeek"))
+    from_weekly = None
+    if weekly is not None and days is not None and days > 0:
+        from_weekly = weekly / days
+
+    candidates = [
+        v for v in (stated, from_shift, from_weekly) if v is not None and v > 0
+    ]
+    daily = max(candidates) if candidates else None
     holiday = facts.get("weeklyPaidHoliday")
     if holiday not in {"stated", "excluded", "none", "unknown"}:
         holiday = "unknown"
@@ -812,6 +853,31 @@ def recompute_time(clauses: list[Clause], facts: dict[str, Any]) -> None:
             "주휴일을 유급으로 준다는 내용이 계약서에 없어요. "
             "주 15시간 이상 일하면 주휴수당을 받을 수 있어요.",
         ))
+
+    # ── 명시 항목 (제17조) ─────────────────────────────────
+    #
+    # 무엇이 적혀 있는지는 사실이고, 무엇이 빠졌으면 문제인지는 규칙입니다.
+    # 모델에게 사실만 받고 판정은 여기서 합니다. 실측에서 이 항목도 3회 중
+    # 1회 흔들렸습니다(문제없음 / 확인필요 / 문제없음).
+    items = facts.get("statedItems")
+    if isinstance(items, list):
+        have = {v for v in items if isinstance(v, str)}
+        missing = [
+            name
+            for key, name in (
+                ("wage", "임금"),
+                ("hours", "소정근로시간"),
+                ("weeklyHoliday", "주휴일"),
+                ("annualLeave", "연차유급휴가"),
+            )
+            if key not in have
+        ]
+        if missing:
+            raise_to.append((
+                "required", "확인필요",
+                f"계약서에 꼭 적혀야 하는 내용 중 {', '.join(missing)}이(가) 안 보여요. "
+                "빠진 항목은 적어달라고 요청할 수 있어요.",
+            ))
 
     for cid, verdict, plain in raise_to:
         c = by_id.get(cid)
