@@ -11,7 +11,6 @@
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import {
-  Alert,
   Image,
   Modal,
   Pressable,
@@ -47,6 +46,15 @@ export default function History() {
   /** 이름을 바꾸는 중인 기록. null 이면 입력창을 닫습니다. */
   const [renaming, setRenaming] = useState<InspectResult | null>(null);
   const [draft, setDraft] = useState("");
+  /**
+   * 길게 누른 기록. null 이면 메뉴를 닫습니다.
+   *
+   * 예전에는 Alert.alert 로 띄웠는데, 안드로이드에서 제목과 버튼만 나열돼
+   * 딱딱하게 보였습니다. 아래 이름 바꾸기 입력창과 같은 모양으로 맞췄습니다.
+   */
+  const [menuFor, setMenuFor] = useState<InspectResult | null>(null);
+  /** 삭제를 확인받는 중인 기록 */
+  const [deleting, setDeleting] = useState<InspectResult | null>(null);
 
   const reload = useCallback(async () => {
     const h = await loadHistory();
@@ -73,39 +81,21 @@ export default function History() {
   }
 
   function openMenu(item: InspectResult) {
-    Alert.alert(item.title || "이름 없는 계약서", undefined, [
-      {
-        text: "이름 바꾸기",
-        onPress: () => {
-          setDraft(item.title ?? "");
-          setRenaming(item);
-        },
-      },
-      {
-        text: "삭제",
-        style: "destructive",
-        onPress: () => confirmDelete(item),
-      },
-      { text: "취소", style: "cancel" },
-    ]);
+    setMenuFor(item);
   }
 
-  function confirmDelete(item: InspectResult) {
-    Alert.alert(
-      "이 기록을 지울까요?",
-      "사진과 판정 결과가 함께 지워지고 되돌릴 수 없어요.",
-      [
-        { text: "취소", style: "cancel" },
-        {
-          text: "삭제",
-          style: "destructive",
-          onPress: async () => {
-            await deleteResult(item.id);
-            await reload();
-          },
-        },
-      ]
-    );
+  /** 메뉴를 먼저 닫고 확인창을 엽니다. 모달 두 개가 겹치면 화면이 깜빡입니다. */
+  function askDelete(item: InspectResult) {
+    setMenuFor(null);
+    setDeleting(item);
+  }
+
+  async function doDelete() {
+    const item = deleting;
+    if (!item) return;
+    setDeleting(null);
+    await deleteResult(item.id);
+    await reload();
   }
 
   async function saveName() {
@@ -210,6 +200,90 @@ export default function History() {
           <Text style={styles.secondaryText}>새 계약서 촬영</Text>
         </Pressable>
       </ScrollView>
+
+      {/* 기록을 길게 눌렀을 때 나오는 메뉴 */}
+      <Modal
+        visible={menuFor !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuFor(null)}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setMenuFor(null)}>
+          {/* 시트를 누른 것이 뒤로 전달되지 않게 막습니다 */}
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <Text style={styles.sheetTitle}>
+              {menuFor?.title || "이름 없는 계약서"}
+            </Text>
+            <Text style={styles.sheetSub}>무엇을 할까요?</Text>
+
+            <View style={styles.sheetStack}>
+              <Pressable
+                style={[styles.sheetButton, styles.sheetCancel]}
+                onPress={() => {
+                  const item = menuFor;
+                  if (!item) return;
+                  setMenuFor(null);
+                  setDraft(item.title ?? "");
+                  setRenaming(item);
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.sheetCancelText}>이름 바꾸기</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.sheetButton, styles.sheetDanger]}
+                onPress={() => menuFor && askDelete(menuFor)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.sheetDangerText}>삭제</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.sheetButton}
+                onPress={() => setMenuFor(null)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.sheetPlainText}>닫기</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 삭제 확인 */}
+      <Modal
+        visible={deleting !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleting(null)}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>이 기록을 지울까요?</Text>
+            <Text style={styles.sheetSub}>
+              사진과 판정 결과가 함께 지워져요. 되돌릴 수 없어요.
+            </Text>
+
+            <View style={styles.sheetRow}>
+              <Pressable
+                style={[styles.sheetButton, styles.sheetCancel]}
+                onPress={() => setDeleting(null)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.sheetCancelText}>취소</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.sheetButton, styles.sheetDangerFill]}
+                onPress={doDelete}
+                accessibilityRole="button"
+              >
+                <Text style={styles.sheetDangerFillText}>삭제</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* 이름 입력. Alert.prompt 는 iOS 전용이라 직접 만듭니다. */}
       <Modal
@@ -342,7 +416,7 @@ const styles = StyleSheet.create({
     fontWeight: weight.semibold,
   },
 
-  /* 이름 입력 */
+  /* 모달 3개가 같이 쓰는 스타일 (메뉴 / 삭제 확인 / 이름 입력) */
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(18, 41, 77, 0.45)",
@@ -385,6 +459,24 @@ const styles = StyleSheet.create({
   sheetCancel: { borderWidth: 1, borderColor: colors.line },
   sheetCancelText: {
     color: colors.navy,
+    fontSize: font.body,
+    fontWeight: weight.semibold,
+  },
+  sheetStack: { gap: space.sm, marginTop: space.xs },
+  sheetPlainText: {
+    color: colors.gray,
+    fontSize: font.body,
+    fontWeight: weight.semibold,
+  },
+  sheetDanger: { borderWidth: 1, borderColor: colors.red },
+  sheetDangerText: {
+    color: colors.red,
+    fontSize: font.body,
+    fontWeight: weight.semibold,
+  },
+  sheetDangerFill: { backgroundColor: colors.red },
+  sheetDangerFillText: {
+    color: colors.white,
     fontSize: font.body,
     fontWeight: weight.semibold,
   },
