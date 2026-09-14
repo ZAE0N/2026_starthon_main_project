@@ -25,16 +25,40 @@ export default function RootLayout() {
           headerShadowVisible: false,
           headerBackTitle: "뒤로",
           contentStyle: { backgroundColor: colors.bg },
+
+          /*
+           * 화면 전환. 지정하지 않으면 플랫폼 기본값을 쓰는데, 화면마다
+           * 성격이 달라서 한 번 정해둡니다.
+           *
+           * 웹에는 적용되지 않습니다. 전환은 react-native-screens 가
+           * 네이티브에서 처리하고 웹에는 그 구현이 없습니다.
+           * 브라우저에서 화면이 뚝뚝 바뀌는 것은 그래서이고, 정상입니다.
+           */
+          animation: "slide_from_right",
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="camera" options={{ title: "계약서 사진" }} />
-        {/* 분석 중에는 뒤로 못 가게 막습니다. 돌아가면 분석이 다시 돕니다. */}
+        {/*
+          분석 중에는 뒤로 못 가게 막습니다. 돌아가면 분석이 다시 돕니다.
+
+          전환은 fade 입니다. 촬영 화면에서 여기로, 여기서 결과로 모두
+          router.replace 로 갈아타는데 슬라이드가 걸리면 뒤로 가는 것처럼
+          보입니다.
+        */}
         <Stack.Screen
           name="analyzing"
-          options={{ headerShown: false, gestureEnabled: false }}
+          options={{
+            headerShown: false,
+            gestureEnabled: false,
+            animation: "fade",
+          }}
         />
-        <Stack.Screen name="result" options={{ title: "진단 결과" }} />
+        {/* 분석중에서 갈아타므로 결과 화면도 fade 입니다 */}
+        <Stack.Screen
+          name="result"
+          options={{ title: "진단 결과", animation: "fade" }}
+        />
         <Stack.Screen name="clause/[id]" options={{ title: "조항 상세" }} />
         <Stack.Screen name="script" options={{ title: "말할 문장" }} />
         <Stack.Screen name="history" options={{ title: "내 계약서" }} />
