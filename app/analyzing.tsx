@@ -20,6 +20,8 @@ import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -65,11 +67,12 @@ const FACTS = [
 ];
 
 /**
- * 진행 막대 4칸과 그때 보여줄 문구. at 은 "이 초가 지나면" 이라는 뜻입니다.
+ * 단계마다 바뀌는 안내 문구. at 은 "이 초가 지나면" 이라는 뜻입니다.
+ * 전에는 진행 막대 4칸과 짝이었지만, 막대가 하나로 이어진 뒤에는 문구에만 씁니다.
  *
  * 실측으로 서버 판정이 8~9초입니다. 여유를 둬서 10초를 연출 예산으로 잡고
  * 네 단계를 고르게 뒀습니다. 이 값을 늘리면 마지막 단계("결과를 정리하고 있어요")를
- * 사용자가 볼 일이 없어지고, 막대도 절반만 켜진 채로 화면이 넘어갑니다.
+ * 사용자가 볼 일이 없어집니다.
  *
  * 여기 적은 초는 연출 길이일 뿐입니다. 요청을 끊는 타임아웃은 lib/api.ts 의
  * 45초이고, 둘을 같게 만들면 조금 느린 응답을 정상인데도 끊어버립니다.
@@ -97,6 +100,24 @@ const SLOW_AFTER = 12;
 const FACT_INTERVAL = 2200;
 
 /**
+ * 진행 막대가 느긋하게 90% 까지 올라가는 데 걸리는 시간 (밀리초).
+ * 실측 응답이 8~9초라 대개 85% 쯤에서 판정이 끝납니다.
+ */
+const SLOW_FILL_MS = 10_000;
+
+/**
+ * 90% 이후 97% 까지 아주 느리게 기어가는 구간.
+ * 막대가 끝에 붙어 완전히 멈추면 앱이 죽은 것처럼 보입니다.
+ */
+const CRAWL_MS = 30_000;
+
+/** 판정이 끝나고 100% 로 올리기 전에 두는 여유 (밀리초) */
+const HOLD_MS = 1_000;
+
+/** 100% 까지 몰아서 올리는 시간 (밀리초) */
+const RUSH_MS = 320;
+
+/**
  * 다음에 이 화면이 열릴 때 먼저 보여줄 카드 번호.
  *
  * 분석이 몇 초 만에 끝나면 카드가 한 번도 안 바뀝니다. 그때 항상 같은 카드만
@@ -117,6 +138,10 @@ export default function Analyzing() {
   /** 카드 한 장의 너비. 화면 폭을 재서 넣습니다 (페이지 단위로 넘기려면 필요) */
   const [cardWidth, setCardWidth] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  /** 진행 막대의 채움 비율 (0~1) */
+  const progress = useRef(new Animated.Value(0)).current;
+  /** 막대 옆에 쓸 퍼센트 (0~100) */
+  const [percent, setPercent] = useState(0);
 
   /**
    * 이번에 먼저 보여줄 카드.
@@ -131,9 +156,31 @@ export default function Analyzing() {
     nextStart = (nextStart + 1) % FACTS.length;
   }, []);
 
-  /* 분석 — 이 흐름은 건드리지 않습니다 */
+  /* 분석 — 서버를 부르고 저장하는 흐름입니다 */
   useEffect(() => {
     let alive = true;
+    let hold: ReturnType<typeof setTimeout> | undefined;
+
+    /**
+     * 판정이 끝났을 때의 마무리.
+     *
+     * 1초 쉬고 막대를 100% 까지 몰아서 올린 다음 다음 화면으로 넘깁니다.
+     * 90% 까지 느긋하게 차오르던 막대가 끝을 못 보고 사라지면 다 된 것인지
+     * 알 수 없습니다. 100% 를 한 번 보여주고 넘기면 기다림이 끝났다는 게 남습니다.
+     */
+    const finishThen = (go: () => void) => {
+      hold = setTimeout(() => {
+        if (!alive) return;
+        Animated.timing(progress, {
+          toValue: 1,
+          duration: RUSH_MS,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: false, // width 는 네이티브 드라이버로 못 돌립니다
+        }).start(({ finished }) => {
+          if (alive && finished) go();
+        });
+      }, HOLD_MS);
+    };
 
     (async () => {
       const photo = getCurrentPhoto();
@@ -150,25 +197,82 @@ export default function Analyzing() {
         const saved = await saveResult(result, photo.uri);
 
         if (!alive) return;
-        setCurrent(saved);
-        router.replace("/result");
+        finishThen(() => {
+          setCurrent(saved);
+          router.replace("/result");
+        });
       } catch (e) {
         if (!alive) return;
-        setErrorKind(e instanceof ApiError ? e.kind : "server");
+        const kind = e instanceof ApiError ? e.kind : "server";
+
+        // 계약서가 아님 / 글자를 못 읽음 은 서버가 사진을 보고 답한 것이므로
+        // 이것도 판정입니다. 막대를 100% 까지 올린 뒤에 알려줍니다.
+        // 연결이 끊긴 경우는 판정이 아니라서 기다리게 할 이유가 없습니다.
+        if (kind === "notContract" || kind === "unreadable") {
+          finishThen(() => setErrorKind(kind));
+          return;
+        }
+
+        setErrorKind(kind);
       }
     })();
 
     return () => {
       alive = false;
+      if (hold) clearTimeout(hold);
     };
-  }, [attempt]);
+  }, [attempt, progress]);
 
-  /* 경과 시간 — 문구와 진행 막대가 이 값을 봅니다 */
+  /* 경과 시간 — 단계 문구가 이 값을 봅니다 (막대는 Animated 로 돌립니다) */
   useEffect(() => {
     if (errorKind) return;
     const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, [errorKind, attempt]);
+
+  /**
+   * 진행 막대 — 판정을 기다리는 동안 느긋하게 차오르는 구간.
+   *
+   * 90% 까지 10초, 그다음은 97% 까지 아주 느리게 기어갑니다. 두 단계로 나눈 이유는
+   * 막대가 끝에 붙어 완전히 멈추면 앱이 죽은 것처럼 보이기 때문입니다.
+   * 100% 는 판정이 끝났을 때만 씁니다 (위 finishThen).
+   */
+  useEffect(() => {
+    if (errorKind) return;
+
+    progress.setValue(0);
+    const anim = Animated.sequence([
+      Animated.timing(progress, {
+        toValue: 0.9,
+        duration: SLOW_FILL_MS,
+        easing: Easing.out(Easing.quad), // 초반이 빠르면 기다림이 짧게 느껴집니다
+        useNativeDriver: false,
+      }),
+      Animated.timing(progress, {
+        toValue: 0.97,
+        duration: CRAWL_MS,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    ]);
+
+    anim.start();
+    return () => anim.stop();
+  }, [errorKind, attempt, progress]);
+
+  /**
+   * 막대 옆에 쓸 퍼센트.
+   *
+   * Animated.Value 는 화면을 다시 그리지 않으므로 값을 따로 받아 둡니다.
+   * 정수가 바뀔 때만 상태를 갱신해서 매 프레임 다시 그리지 않게 합니다.
+   */
+  useEffect(() => {
+    const id = progress.addListener(({ value }) => {
+      const next = Math.round(value * 100);
+      setPercent((prev) => (prev === next ? prev : next));
+    });
+    return () => progress.removeListener(id);
+  }, [progress]);
 
   /* 정보 카드 자동 전환 — 손으로 넘긴 뒤에는 멈춥니다 */
   useEffect(() => {
@@ -231,6 +335,7 @@ export default function Analyzing() {
               // 같은 사진으로 다시 보냅니다. 사진은 아직 session 에 있습니다.
               setErrorKind(null);
               setElapsed(0);
+              setPercent(0);
               setFactIndex(0);
               setManual(false);
               setAttempt((n) => n + 1);
@@ -317,18 +422,28 @@ export default function Analyzing() {
           ))}
         </View>
 
-        <View
-          style={styles.bars}
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel="분석 진행 중"
-        >
-          {STAGES.map((s, i) => (
-            <View
-              key={s.at}
-              style={[styles.bar, i <= stage && styles.barOn]}
+        <View style={styles.progressRow}>
+          <View
+            style={styles.track}
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel="분석 진행 중"
+            accessibilityValue={{ min: 0, max: 100, now: percent }}
+          >
+            <Animated.View
+              style={[
+                styles.fill,
+                {
+                  width: progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
+              ]}
             />
-          ))}
+          </View>
+
+          <Text style={styles.percent}>{percent}%</Text>
         </View>
       </View>
     </View>
@@ -408,15 +523,32 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* 진행 막대 */
-  bars: { flexDirection: "row", gap: space.xs, marginTop: space.xl },
-  bar: {
-    width: 22,
-    height: 3,
-    borderRadius: radius.sm,
-    backgroundColor: colors.line,
+  /* 진행 막대 — 칸을 나누지 않고 하나로 이어진 막대입니다 */
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    marginTop: space.xl,
   },
-  barOn: { backgroundColor: colors.mint },
+  track: {
+    width: 180,
+    height: 4,
+    borderRadius: radius.full,
+    backgroundColor: colors.line,
+    overflow: "hidden", // 채움이 둥근 끝을 넘어가지 않게 합니다
+  },
+  fill: {
+    height: "100%",
+    borderRadius: radius.full,
+    backgroundColor: colors.mint,
+  },
+  percent: {
+    // 자릿수가 늘어도 막대가 밀리지 않게 폭을 고정합니다
+    minWidth: 34,
+    fontSize: font.tiny,
+    color: colors.gray,
+    fontVariant: ["tabular-nums"],
+  },
 
   /* 에러 표시 */
   badge: {
