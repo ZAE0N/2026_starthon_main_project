@@ -1,11 +1,10 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, SafeAreaView, Linking } from 'react-native';
-import { useRouter } from 'expo-router';
+
 import { colors, space, radius, font, weight, screenPadding, minTouch } from '../constants/theme';
 import { copy } from '../constants/copy';
 
 export default function HelpScreen() {
-  const router = useRouter();
 
   const handlePressCall = (tel: string) => {
     // 공백 및 특수문자 제거 후 전화 걸기 연결
@@ -48,18 +47,6 @@ export default function HelpScreen() {
           ))}
         </View>
 
-        {/* 내 기록 보기 바로가기 버튼 */}
-        <View style={styles.footer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.historyLinkButton,
-              pressed && styles.historyLinkButtonPressed,
-            ]}
-            onPress={() => router.push('/history')}
-          >
-            <Text style={styles.historyLinkText}>내 진단 기록 보러가기 →</Text>
-          </Pressable>
-        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -148,22 +135,5 @@ const styles = StyleSheet.create({
     fontWeight: weight.bold,
     color: colors.mintText, // 흰 배경 대비율 기준 충족
   },
-  footer: {
-    marginTop: space.xl,
-    alignItems: 'center',
-  },
-  historyLinkButton: {
-    paddingVertical: space.sm,
-    paddingHorizontal: space.md,
-    minHeight: minTouch,
-    justifyContent: 'center',
-  },
-  historyLinkButtonPressed: {
-    opacity: 0.6,
-  },
-  historyLinkText: {
-    fontSize: font.body,
-    fontWeight: weight.semibold,
-    color: colors.navy,
-  },
+
 });
