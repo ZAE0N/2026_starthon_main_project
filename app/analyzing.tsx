@@ -33,7 +33,7 @@ import { ApiError, inspectContract, type ApiErrorKind } from "../lib/api";
 import { getCurrentPhoto, setCurrent } from "../lib/session";
 import { saveResult } from "../lib/storage";
 import { copy } from "../constants/copy";
-import { CHECK_ORDER } from "../types";
+import { CHECK_ORDER, getMarked } from "../types";
 import {
   colors,
   font,
@@ -197,9 +197,17 @@ export default function Analyzing() {
         const saved = await saveResult(result, photo.uri);
 
         if (!alive) return;
+
+        /*
+         * 표시할 곳이 있으면 채점된 계약서를 한 번 보여주고 결과로 갑니다.
+         * 없으면(전부 문제없음, 또는 서버가 위치를 안 보냄) 그 화면은 건너뜁니다.
+         * 표시가 하나도 없는 사진을 띄우면 "그래서 뭐" 가 됩니다.
+         */
+        const next = getMarked(saved).length > 0 ? "/marked" : "/result";
+
         finishThen(() => {
           setCurrent(saved);
-          router.replace("/result");
+          router.replace(next);
         });
       } catch (e) {
         if (!alive) return;

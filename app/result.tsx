@@ -10,7 +10,6 @@
 import { useState } from "react";
 import { router } from "expo-router";
 import {
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -18,10 +17,12 @@ import {
   Text,
   View,
 } from "react-native";
+import MarkedShot from "../components/MarkedShot";
 import {
   CHECK_ORDER,
   countIllegal,
   getIssues,
+  getMarked,
   getOk,
   type Clause,
 } from "../types";
@@ -126,6 +127,9 @@ export default function Result() {
    */
   const shot = result.imagePath || photo?.uri || "";
 
+  /** 사진에 표시할 조항. 위에서 아래 순입니다 */
+  const marked = getMarked(result);
+
   return (
     <>
       <ScrollView contentContainerStyle={styles.screen}>
@@ -152,12 +156,22 @@ export default function Result() {
             <Pressable
               onPress={() => setZoom(true)}
               accessibilityRole="button"
-              accessibilityLabel="계약서 사진 크게 보기"
+              accessibilityLabel={
+                marked.length > 0
+                  ? `표시된 계약서 크게 보기, ${marked.length}곳 표시됨`
+                  : "계약서 사진 크게 보기"
+              }
             >
-              <Image
-                source={{ uri: shot }}
+              {/*
+                썸네일에도 띠를 그립니다. 그냥 사진이면 눌러볼 이유가 없는데,
+                작게라도 줄이 그어져 있으면 뭔지 보려고 누릅니다.
+                번호 동그라미는 이 크기에서 사진을 다 덮어서 끕니다.
+              */}
+              <MarkedShot
+                uri={shot}
+                clauses={marked}
+                showNumbers={false}
                 style={styles.shot}
-                resizeMode="cover"
               />
             </Pressable>
           ) : null}
@@ -265,8 +279,14 @@ export default function Result() {
       </ScrollView>
 
       {/*
-        사진 크게 보기. 판정이 이상할 때 원본을 눈으로 확인할 수 있어야 합니다.
-        흐리게 찍혀서 잘못 읽은 것인지, 정말 그렇게 적혀 있는 것인지 가려야 하니까요.
+        사진 크게 보기. 두 가지 역할을 같이 합니다.
+
+        1. 판정이 이상할 때 원본을 눈으로 확인 — 흐리게 찍혀서 잘못 읽은 것인지,
+           정말 그렇게 적혀 있는 것인지 가려야 합니다.
+        2. 어디가 문제인지 다시 보기 — 분석 직후 한 번 보여주는 화면과 같은
+           표시를 그립니다. 궁금해서 다시 열어보는 사람이 있으니까요.
+
+        긴 계약서는 화면에 다 안 들어와서 세로로 스크롤됩니다.
       */}
       <Modal
         visible={zoom}
@@ -274,20 +294,30 @@ export default function Result() {
         animationType="fade"
         onRequestClose={() => setZoom(false)}
       >
-        <Pressable
-          style={styles.zoomBack}
-          onPress={() => setZoom(false)}
-          accessibilityRole="button"
-          accessibilityLabel="닫기"
-        >
-          <Image
-            source={{ uri: shot }}
-            style={styles.zoomShot}
-            resizeMode="contain"
-          />
+        <View style={styles.zoomBack}>
+          <ScrollView
+            style={styles.zoomScroll}
+            contentContainerStyle={styles.zoomBody}
+          >
+            <MarkedShot uri={shot} clauses={marked} />
+          </ScrollView>
 
-          <Text style={styles.zoomHint}>아무 곳이나 눌러 닫기</Text>
-        </Pressable>
+          {/*
+            사진 자체를 눌러 닫게 하면 스크롤하려고 손을 댈 때마다 닫힙니다.
+            닫는 버튼을 따로 둡니다.
+          */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.zoomClose,
+              pressed && styles.zoomClosePressed,
+            ]}
+            onPress={() => setZoom(false)}
+            accessibilityRole="button"
+            accessibilityLabel="닫기"
+          >
+            <Text style={styles.zoomCloseText}>닫기</Text>
+          </Pressable>
+        </View>
       </Modal>
     </>
   );
@@ -297,12 +327,11 @@ const styles = StyleSheet.create({
   screen: { padding: screenPadding, backgroundColor: colors.bg, gap: space.md },
 
   head: { flexDirection: "row", alignItems: "center", gap: space.md },
-  shot: {
-    width: 56,
-    height: 72,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-  },
+  /*
+    가로만 정합니다. 높이는 MarkedShot 이 사진의 원래 비율로 잡습니다.
+    여기서 높이를 고정하면 사진이 눌리면서 띠 위치가 어긋납니다.
+  */
+  shot: { width: 56 },
   headText: { flex: 1, minWidth: 0, gap: space.xs },
   place: { fontSize: font.small, color: colors.mintText, fontWeight: weight.semibold },
   title: { fontSize: font.h2, fontWeight: weight.bold, color: colors.navy },
@@ -326,8 +355,23 @@ const styles = StyleSheet.create({
     padding: space.md,
     gap: space.md,
   },
-  zoomShot: { width: "100%", flex: 1 },
-  zoomHint: { fontSize: font.small, color: colors.grayLight },
+  zoomScroll: { alignSelf: "stretch" },
+  zoomBody: { padding: space.md },
+  zoomClose: {
+    alignSelf: "stretch",
+    minHeight: minTouch,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  zoomClosePressed: { backgroundColor: "rgba(255, 255, 255, 0.12)" },
+  zoomCloseText: {
+    color: colors.white,
+    fontSize: font.body,
+    fontWeight: weight.semibold,
+  },
 
   list: { gap: space.sm },
   card: {

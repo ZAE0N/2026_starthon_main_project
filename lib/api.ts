@@ -14,6 +14,7 @@ import {
   type CheckId,
   type Clause,
   type InspectResult,
+  type Mark,
   type Note,
   type Verdict,
 } from "../types";
@@ -100,6 +101,7 @@ function toClause(raw: unknown, id: CheckId): Clause {
     law: typeof o.law === "string" ? o.law : "",
     // 옛 서버는 lawText 를 안 보냅니다. 그때는 빈 문자열로 두고 화면에서 숨깁니다.
     lawText: typeof o.lawText === "string" ? o.lawText : "",
+    mark: toMark((raw as any)?.mark),
     scripts: {
       soft: o.scripts?.soft ?? "",
       firm: o.scripts?.firm ?? "",
@@ -112,6 +114,21 @@ function toClause(raw: unknown, id: CheckId): Clause {
  * 항상 8개를 정해진 순서로 맞춰줍니다.
  * 이게 없으면 "8개 중 2개 문제"라는 화면 문구가 거짓이 됩니다.
  */
+/**
+ * 사진 속 위치. 서버가 이미 다듬어 보내지만 한 번 더 걸러냅니다.
+ *
+ * 틀린 자리에 띠를 그으면 "엉뚱한 곳을 짚었다" 가 되어 판정 전체가 의심받습니다.
+ * 애매하면 null 로 두고 아예 안 그립니다. 옛 서버는 이 값을 안 보냅니다.
+ */
+function toMark(raw: any): Mark | null {
+  const top = raw?.top;
+  const bottom = raw?.bottom;
+  if (typeof top !== "number" || typeof bottom !== "number") return null;
+  if (!Number.isFinite(top) || !Number.isFinite(bottom)) return null;
+  if (top < 0 || bottom > 1 || bottom <= top) return null;
+  return { top, bottom };
+}
+
 /** "몰랐을 수도 있는 것" 한 덩어리. 이상한 값이 와도 화면이 안 깨지게 다듬습니다 */
 function toNote(raw: any): Note {
   return {

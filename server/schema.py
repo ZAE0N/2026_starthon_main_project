@@ -72,6 +72,22 @@ class Note(BaseModel):
     law: str = ""
 
 
+class Mark(BaseModel):
+    """
+    사진 안에서 이 조항이 적혀 있는 자리. 이미지 전체 높이를 1.0 으로 본 비율입니다.
+
+    가로는 받지 않습니다. 세로 위치만 받아서 사진 폭 전체에 형광펜처럼 띠를 긋습니다.
+
+    왜 네모 박스가 아닌가: 모델에게 정확한 네모를 내놓으라는 건 무리입니다.
+    실제로 시나리오 4장으로 재봤더니 세로 위치는 표의 칸을 거의 맞추는데
+    가로까지 그리면 몇 픽셀 어긋난 게 그대로 보였습니다. 가로 띠는 위아래만
+    맞으면 줄을 그은 것처럼 보여서 같은 오차가 눈에 띄지 않습니다.
+    """
+
+    top: float = Field(ge=0.0, le=1.0)
+    bottom: float = Field(ge=0.0, le=1.0)
+
+
 class Clause(BaseModel):
     id: str
     label: str
@@ -81,6 +97,8 @@ class Clause(BaseModel):
     law: str = ""
     #: 조문 전문. laws.json 의 lawText 를 그대로 보냅니다 (AI 가 만든 값이 아닙니다)
     lawText: str = ""
+    #: 사진 속 위치. 계약서에 그 내용이 없으면(original 이 빈 문자열) None 입니다.
+    mark: Mark | None = None
     scripts: Scripts
 
 

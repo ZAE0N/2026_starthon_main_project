@@ -40,6 +40,19 @@ export const CHECK_LABELS: Record<CheckId, string> = {
   required: "명시 항목",
 };
 
+/**
+ * 사진 안에서 이 조항이 적혀 있는 자리. 사진 전체 높이를 1.0 으로 본 비율입니다.
+ *
+ * 가로는 없습니다. 세로 위치만 받아서 사진 폭 전체에 형광펜처럼 띠를 긋습니다.
+ * 모델이 정확한 네모를 내놓지는 못해서 그렇게 정했습니다 (server/schema.py 의 Mark).
+ */
+export type Mark = {
+  /** 시작 높이 (0.0 ~ 1.0) */
+  top: number;
+  /** 끝 높이 (0.0 ~ 1.0, top 보다 큽니다) */
+  bottom: number;
+};
+
 /** 조항 하나의 판정 결과 */
 export type Clause = {
   id: CheckId;
@@ -57,6 +70,11 @@ export type Clause = {
    * 옛 서버는 이 값을 안 보내므로 빈 문자열일 수 있습니다.
    */
   lawText: string;
+  /**
+   * 사진 속 위치. 계약서에 그 내용이 없으면 null 입니다.
+   * 옛 서버는 이 값을 안 보내므로 undefined 일 수 있습니다.
+   */
+  mark?: Mark | null;
   /** 사장님에게 말할 문장. 문제없음이면 빈 문자열 */
   scripts: {
     soft: string;
@@ -144,6 +162,18 @@ export function getIssues(result: InspectResult): Clause[] {
   return result.clauses
     .filter((c) => c.verdict !== "문제없음")
     .sort((a, b) => rank[a.verdict] - rank[b.verdict]);
+}
+
+/**
+ * 사진에 표시할 조항. 문제가 있고 자리를 아는 것만 골라 위에서 아래 순으로 줍니다.
+ *
+ * 화면 순서(위법소지 먼저)가 아니라 사진에 적힌 순서로 정렬합니다.
+ * 띠를 위에서부터 읽어야 계약서를 눈으로 따라갈 수 있습니다.
+ */
+export function getMarked(result: InspectResult): Clause[] {
+  return result.clauses
+    .filter((c) => c.verdict !== "문제없음" && c.mark != null)
+    .sort((a, b) => (a.mark as Mark).top - (b.mark as Mark).top);
 }
 
 /** 문제없는 조항만 */
