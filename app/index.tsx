@@ -3,7 +3,42 @@ import { View, Text, Pressable, StyleSheet, ScrollView, SafeAreaView } from 'rea
 import { useRouter } from 'expo-router';
 import { colors, space, radius, font, weight, screenPadding, minTouch } from '../constants/theme';
 import { copy } from '../constants/copy';
+import RotatingCards, { type InfoCard } from '../components/RotatingCards';
 import { CHECK_LABELS, CHECK_ORDER } from '../types';
+
+/*
+  안내 카드. 예전에는 두 장을 세로로 쌓아 뒀는데, 화면이 길어지고 둘 다 대충
+  읽혔습니다. 4.2초마다 한 장씩 바뀌게 했습니다. (components/RotatingCards.tsx)
+
+  "89%" 카드는 그 숫자의 출처를 대지 못해 뺐습니다. (PROGRESS.md 의 R6)
+  지금 두 장은 우리가 실제로 가진 사실입니다.
+
+  항목 개수는 CHECK_ORDER 에서 세서 씁니다. 숫자를 적어두면 항목이 늘거나
+  줄었을 때 이 화면이 거짓이 됩니다. analyzing.tsx 도 같은 이유로 그렇게 했습니다.
+*/
+const INFO_CARDS: InfoCard[] = [
+  {
+    title: `${CHECK_ORDER.length}가지를 확인해요`,
+    body: CHECK_ORDER.map((id) => CHECK_LABELS[id]).join(' · '),
+  },
+  /*
+    판정 전제를 처음부터 알려줍니다.
+
+    회의 결론입니다. 전에는 결과 화면 아래에만 있었는데, 그건 이미 판정을
+    다 본 뒤입니다. 5명 미만인 곳에서 일하는 사람은 자기 결과가 기준에
+    안 맞는다는 걸 마지막에 알게 됩니다.
+
+    문구는 laws.json 의 assumptions 와 같은 기준입니다.
+    서버가 조건을 받아 판정하게 되면(FEATURE_hidden-conditions) 이 카드는
+    촬영 화면의 질문으로 대체될 수 있습니다.
+  */
+  {
+    title: '먼저 알아두세요',
+    body:
+      '만 18세 이상, 일하는 사람이 5명 이상인 곳을 기준으로 봐요. ' +
+      '5명 미만인 곳에는 적용되지 않는 법이 있어서 결과가 달라질 수 있어요.',
+  },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -21,48 +56,7 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/*
-          카드 두 장. 예전에는 "89%" 하나만 있었는데 그 숫자의 출처를 대지 못해
-          빼고, 우리가 실제로 가진 사실로 채웠습니다. (PROGRESS.md 의 R6)
-
-          항목 개수는 CHECK_ORDER 에서 세서 씁니다. 숫자를 적어두면 항목이 늘거나
-          줄었을 때 이 화면이 거짓이 됩니다. analyzing.tsx 도 같은 이유로 그렇게 했습니다.
-        */}
-        <View style={styles.cards}>
-          <View style={styles.infoCard}>
-            <View style={styles.infoLine} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>
-                {CHECK_ORDER.length}가지를 확인해요
-              </Text>
-              <Text style={styles.infoBody}>
-                {CHECK_ORDER.map((id) => CHECK_LABELS[id]).join(' · ')}
-              </Text>
-            </View>
-          </View>
-
-          {/*
-            판정 전제를 처음부터 알려줍니다.
-
-            회의 결론입니다. 전에는 결과 화면 아래에만 있었는데, 그건 이미 판정을
-            다 본 뒤입니다. 5명 미만인 곳에서 일하는 사람은 자기 결과가 기준에
-            안 맞는다는 걸 마지막에 알게 됩니다.
-
-            문구는 laws.json 의 assumptions 와 같은 기준입니다.
-            서버가 조건을 받아 판정하게 되면(FEATURE_hidden-conditions) 이 카드는
-            촬영 화면의 질문으로 대체될 수 있습니다.
-          */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoLine} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>먼저 알아두세요</Text>
-              <Text style={styles.infoBody}>
-                만 18세 이상, 일하는 사람이 5명 이상인 곳을 기준으로 봐요.
-                5명 미만인 곳에는 적용되지 않는 법이 있어서 결과가 달라질 수 있어요.
-              </Text>
-            </View>
-          </View>
-        </View>
+        <RotatingCards cards={INFO_CARDS} />
 
         {/* 메인 버튼 및 보조 버튼 영역 */}
         <View style={styles.actionContainer}>
@@ -141,32 +135,6 @@ const styles = StyleSheet.create({
     fontSize: font.body,
     color: colors.navySoft,
     lineHeight: 22,
-  },
-  cards: { gap: space.sm, marginVertical: space.md },
-  infoCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    padding: space.md,
-    borderRadius: radius.md,
-  },
-  infoLine: {
-    width: 4,
-    alignSelf: 'stretch',
-    backgroundColor: colors.mint,
-    borderRadius: radius.full,
-    marginRight: space.md,
-  },
-  infoContent: { flex: 1 },
-  infoTitle: {
-    fontSize: font.body,
-    fontWeight: weight.semibold,
-    color: colors.navy,
-  },
-  infoBody: {
-    marginTop: space.xs,
-    fontSize: font.small,
-    color: colors.gray,
-    lineHeight: 19,
   },
   actionContainer: {
     marginTop: space.lg,

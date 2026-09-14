@@ -28,7 +28,6 @@ import {
 } from "../types";
 import { USING_MOCK } from "../lib/api";
 import { useCurrent, useCurrentPhoto } from "../lib/session";
-import { copy } from "../constants/copy";
 import {
   colors,
   font,
@@ -265,8 +264,6 @@ export default function Result() {
           </View>
         )}
 
-        <Text style={styles.disclaimer}>{copy.disclaimer}</Text>
-
         <View style={styles.foot}>
           <Pressable
             style={styles.secondary}
@@ -421,13 +418,6 @@ const styles = StyleSheet.create({
   note: { gap: space.xs },
   noteText: { fontSize: font.small, color: colors.navySoft, lineHeight: 21 },
   noteLaw: { fontSize: font.tiny, color: colors.gray },
-
-  disclaimer: {
-    fontSize: font.tiny,
-    color: colors.gray,
-    textAlign: "center",
-    lineHeight: 17,
-  },
 
   foot: { flexDirection: "row", gap: space.sm },
   secondary: {
