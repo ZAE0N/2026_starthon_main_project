@@ -39,6 +39,15 @@ const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? "";
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === "true";
 
 /**
+ * 지금 가짜 데이터로 돌고 있는지. 화면에서 개발용 표시를 띄울 때 씁니다.
+ *
+ * 목 모드는 어떤 계약서를 넣어도 같은 결과를 돌려줍니다. 그걸 모르면
+ * "AI가 오판정한다" 로 오해하게 됩니다. 실제로 두 번 그랬습니다.
+ * (REVIEW_2026-09-14.md 의 시스템 항목)
+ */
+export const USING_MOCK = USE_MOCK;
+
+/**
  * 목 모드에서 일부러 에러를 내고 싶을 때 씁니다. (.env 의 EXPO_PUBLIC_MOCK_ERROR)
  * 에러 화면은 종류마다 안내가 달라서 눈으로 확인하지 않으면 만들 수 없습니다.
  *   EXPO_PUBLIC_MOCK_ERROR=timeout    → "분석이 오래 걸리고 있어요"

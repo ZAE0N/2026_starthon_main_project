@@ -25,7 +25,8 @@ import {
   getOk,
   type Clause,
 } from "../types";
-import { useCurrent } from "../lib/session";
+import { USING_MOCK } from "../lib/api";
+import { useCurrent, useCurrentPhoto } from "../lib/session";
 import { copy } from "../constants/copy";
 import {
   colors,
@@ -87,6 +88,7 @@ function placeName(title?: string): string {
 
 export default function Result() {
   const result = useCurrent();
+  const photo = useCurrentPhoto();
   const [showOk, setShowOk] = useState(false);
   /** 사진을 크게 보는 중인지 */
   const [zoom, setZoom] = useState(false);
@@ -111,19 +113,49 @@ export default function Result() {
   /** 사진에서 읽은 사업장 이름. 읽기에 실패한 값은 빈 문자열입니다 */
   const place = placeName(result.title);
 
+  /**
+   * 화면에 보여줄 사진.
+   *
+   * imagePath 는 폰에 복사된 경로입니다. lib/storage.ts 의 savePhoto 는 복사가
+   * 실패하면 빈 문자열을 돌려주는데(판정 결과를 잃지 않으려고 일부러 그렇게 둠),
+   * 그러면 방금 찍은 계약서인데도 사진이 안 보였습니다.
+   *
+   * 웹에서는 FileSystem 복사가 아예 안 돼서 항상 그 상태가 됩니다.
+   * 그래서 복사가 실패하면 session 에 들고 있는 원본을 그대로 씁니다.
+   * session 은 앱을 껐다 켜면 비므로, 기록함에서 다시 열 때는 imagePath 만 씁니다.
+   */
+  const shot = result.imagePath || photo?.uri || "";
+
   return (
     <>
       <ScrollView contentContainerStyle={styles.screen}>
-        <View style={styles.head}>
+        {/*
+        개발 중에만 보이는 표시. 목 모드는 어떤 계약서를 넣어도 같은 결과가 나오는데,
+        그걸 모르면 "AI가 오판정한다" 로 오해합니다. 실제로 두 번 그랬습니다.
+        __DEV__ 는 릴리즈 빌드에서 false 라 사용자에게는 보이지 않습니다.
+      */}
+      {__DEV__ && USING_MOCK ? (
+        <View style={styles.devNotice}>
+          <Text style={styles.devNoticeText}>
+            가짜 데이터입니다. 어떤 계약서를 넣어도 같은 결과가 나옵니다.
+          </Text>
+          <Text style={styles.devNoticeText}>
+            .env 의 EXPO_PUBLIC_USE_MOCK 을 false 로 바꾸고
+            npx expo start -c 로 다시 켜세요.
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={styles.head}>
           {/* 사진이 있으면 같이 보여줍니다. 어느 계약서의 결과인지 알 수 있게요. */}
-          {result.imagePath ? (
+          {shot !== "" ? (
             <Pressable
               onPress={() => setZoom(true)}
               accessibilityRole="button"
               accessibilityLabel="계약서 사진 크게 보기"
             >
               <Image
-                source={{ uri: result.imagePath }}
+                source={{ uri: shot }}
                 style={styles.shot}
                 resizeMode="cover"
               />
@@ -249,7 +281,7 @@ export default function Result() {
           accessibilityLabel="닫기"
         >
           <Image
-            source={{ uri: result.imagePath }}
+            source={{ uri: shot }}
             style={styles.zoomShot}
             resizeMode="contain"
           />
@@ -275,6 +307,15 @@ const styles = StyleSheet.create({
   place: { fontSize: font.small, color: colors.mintText, fontWeight: weight.semibold },
   title: { fontSize: font.h2, fontWeight: weight.bold, color: colors.navy },
   headSub: { fontSize: font.small, color: colors.gray, lineHeight: 19 },
+
+  /* 개발용 표시 (릴리즈에서는 안 보임) */
+  devNotice: {
+    gap: space.xs,
+    backgroundColor: colors.amberBg,
+    borderRadius: radius.md,
+    padding: space.md,
+  },
+  devNoticeText: { fontSize: font.small, color: colors.amber, lineHeight: 19 },
 
   /* 사진 크게 보기 */
   zoomBack: {
