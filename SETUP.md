@@ -44,11 +44,15 @@ expo-image-picker                          사진 찍기·갤러리에서 고르
 expo-image-manipulator                     해상도 축소 (합의된 예외 1건)
 expo-file-system                           사진 저장
 @react-native-async-storage/async-storage  판정 결과 저장
-expo-clipboard                             말할 문장 복사
+expo-clipboard                             (2026-09-14 현재 쓰지 않음 — 아래 참고)
 ```
 
 `expo-camera` 는 설치하지 않습니다. 폰 기본 카메라를 쓰기 때문에 필요 없습니다.
 안 쓰는 패키지가 있으면 AI가 그걸로 코드를 만들어서 오히려 방해가 됩니다.
+
+> **`expo-clipboard`** — 말할 문장을 복사하는 데 썼지만 2026-09-14 에 복사 버튼을
+> 빼면서 쓰는 곳이 없어졌습니다. `package.json` 에는 아직 남아 있습니다.
+> 복사를 다시 넣을 계획이 없으면 지우는 게 맞습니다. 위 문장이 그 이유입니다.
 
 **Expo SDK 57 / React Native 0.86 / React 19** 를 씁니다.
 

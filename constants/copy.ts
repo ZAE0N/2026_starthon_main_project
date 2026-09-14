@@ -78,14 +78,4 @@ export const copy = {
       tel: "1350",
     },
   ],
-
-  /** 말할 문장 화면에서 묻는 질문 (핵심 지표) */
-  followUp: {
-    question: "사장님께 말해보셨나요?",
-    options: [
-      { value: "요청함", label: "말했어요" },
-      { value: "수정됨", label: "수정해주셨어요" },
-      { value: "못함", label: "못 했어요" },
-    ],
-  },
 } as const;

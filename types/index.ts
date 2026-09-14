@@ -59,12 +59,6 @@ export type Clause = {
 };
 
 /**
- * 사용자가 말 꺼내기를 실제로 했는지.
- * 이 프로젝트의 핵심 지표입니다. 말할 문장 화면에서 한 번 묻습니다.
- */
-export type FollowUp = "요청함" | "못함" | "수정됨";
-
-/**
  * 사진을 보내기 전에 사용자가 답한 조건. (app/camera.tsx)
  *
  * 답에 따라 적용되는 법이 달라집니다. 예를 들어 야간 가산수당은
@@ -113,8 +107,6 @@ export type InspectResult = {
   basedOn: string;
   /** 기록함에 표시할 이름. 사용자가 나중에 붙임 */
   title?: string;
-  /** 말 꺼내기를 실제로 했는지 */
-  followUp?: FollowUp;
   /** 사진을 보내기 전에 답한 조건. 옛 기록에는 없습니다 */
   workplace?: Workplace;
   /** "몰랐을 수도 있는 것". 해당되는 조건이 없으면 빈 배열 */

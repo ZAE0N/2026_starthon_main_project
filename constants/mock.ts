@@ -113,7 +113,6 @@ export const mockHistory: InspectResult[] = [
     id: "mock-2",
     title: "△△카페",
     createdAt: "2026-08-02T19:05:00+09:00",
-    followUp: "수정됨",
     clauses: clauses.map((c): Clause => ({ ...c, verdict: "문제없음" })),
   },
 ];
