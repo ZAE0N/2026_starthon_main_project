@@ -3,14 +3,22 @@
  *
  * 할 일 (화면 시안 5번)
  *  - 제목 옆 판정 배지, 섹션 3개(계약서에 적힌 내용 / 쉽게 말하면 / 근거)
- *  - original 이 빈 문자열이면 인용구 박스를 통째로 숨깁니다 (아래 이미 처리됨)
- *  - 문제없음 항목은 "말할 문장" 버튼을 숨기거나 비활성화
+ *  - original 이 빈 문자열이면 인용구 박스를 통째로 숨깁니다
+ *  - 문제없음 항목은 "말할 문장" 버튼을 숨깁니다
  */
 
 import { router, useLocalSearchParams } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
 import { findClause } from "../../types";
 import { useCurrent } from "../../lib/session";
+
 import {
   colors,
   font,
@@ -24,7 +32,6 @@ import {
 
 export default function ClauseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-
   const result = useCurrent();
 
   const clause = result
@@ -47,19 +54,11 @@ export default function ClauseDetail() {
     clause.scripts.soft || clause.scripts.firm
   );
 
-  /*
-   * 문제없음 항목은 말할 문장 버튼을 보여주지 않습니다.
-   *
-   * verdictStyle에서 사용하는 실제 verdict 값과
-   * "문제없음"에 해당하는 값이 무엇인지에 따라
-   * 아래 조건은 데이터 타입에 맞게 유지해야 합니다.
-   */
   const canShowScript =
     hasScript && clause.verdict !== "문제없음";
 
   return (
     <ScrollView contentContainerStyle={styles.screen}>
-      {/* 제목 + 판정 배지 */}
       <View style={styles.titleRow}>
         <Text style={styles.title}>
           {clause.label}
@@ -86,11 +85,10 @@ export default function ClauseDetail() {
         </View>
       </View>
 
-      {/* 계약서 원문 */}
       {clause.original !== "" && (
         <View style={styles.section}>
           <Text style={styles.sectionHead}>
-            계약서에 적힌 내용
+            계약서 내용
           </Text>
 
           <Text style={styles.quote}>
@@ -99,10 +97,9 @@ export default function ClauseDetail() {
         </View>
       )}
 
-      {/* 쉽게 설명 */}
       <View style={styles.section}>
         <Text style={styles.sectionHead}>
-          쉽게 말하면
+          내용 설명
         </Text>
 
         <Text style={styles.plain}>
@@ -110,7 +107,6 @@ export default function ClauseDetail() {
         </Text>
       </View>
 
-      {/* 법적 근거 */}
       {clause.law !== "" && (
         <View style={styles.section}>
           <Text style={styles.sectionHead}>
@@ -123,7 +119,6 @@ export default function ClauseDetail() {
         </View>
       )}
 
-      {/* 문제가 있는 조항에서만 말할 문장 버튼 표시 */}
       {canShowScript && (
         <Pressable
           style={styles.primary}
@@ -132,7 +127,7 @@ export default function ClauseDetail() {
           }
         >
           <Text style={styles.primaryText}>
-            사장님께 말할 문장 보기
+            이렇게 말해보세요.
           </Text>
         </Pressable>
       )}
