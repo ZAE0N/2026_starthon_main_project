@@ -10,14 +10,14 @@
 import { useState } from "react";
 import { router } from "expo-router";
 import {
-  Modal,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import MarkedShot from "../components/MarkedShot";
+import MarkedShotZoom from "../components/MarkedShotZoom";
 import {
   CHECK_ORDER,
   countIllegal,
@@ -158,21 +158,26 @@ export default function Result() {
               accessibilityRole="button"
               accessibilityLabel={
                 marked.length > 0
-                  ? `표시된 계약서 크게 보기, ${marked.length}곳 표시됨`
+                  ? `형광펜 그은 계약서 크게 보기, ${marked.length}곳 표시됨`
                   : "계약서 사진 크게 보기"
               }
             >
               {/*
-                썸네일에도 띠를 그립니다. 그냥 사진이면 눌러볼 이유가 없는데,
-                작게라도 줄이 그어져 있으면 뭔지 보려고 누릅니다.
-                번호 동그라미는 이 크기에서 사진을 다 덮어서 끕니다.
+                썸네일에는 형광펜을 그리지 않습니다. 56px 안에서는 글자 한 줄이
+                2px 이라 색 점으로만 보이고, 사진도 형광펜도 안 알아봅니다.
+                대신 표시가 몇 개인지 얹어서 눌러볼 이유를 줍니다.
               */}
-              <MarkedShot
-                uri={shot}
-                clauses={marked}
-                showNumbers={false}
+              <Image
+                source={{ uri: shot }}
                 style={styles.shot}
+                resizeMode="cover"
               />
+
+              {marked.length > 0 ? (
+                <View style={styles.shotBadge} pointerEvents="none">
+                  <Text style={styles.shotBadgeText}>{marked.length}</Text>
+                </View>
+              ) : null}
             </Pressable>
           ) : null}
 
@@ -284,41 +289,14 @@ export default function Result() {
         1. 판정이 이상할 때 원본을 눈으로 확인 — 흐리게 찍혀서 잘못 읽은 것인지,
            정말 그렇게 적혀 있는 것인지 가려야 합니다.
         2. 어디가 문제인지 다시 보기 — 분석 직후 한 번 보여주는 화면과 같은
-           표시를 그립니다. 궁금해서 다시 열어보는 사람이 있으니까요.
-
-        긴 계약서는 화면에 다 안 들어와서 세로로 스크롤됩니다.
+           형광펜을 그립니다. 궁금해서 다시 열어보는 사람이 있으니까요.
       */}
-      <Modal
+      <MarkedShotZoom
         visible={zoom}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setZoom(false)}
-      >
-        <View style={styles.zoomBack}>
-          <ScrollView
-            style={styles.zoomScroll}
-            contentContainerStyle={styles.zoomBody}
-          >
-            <MarkedShot uri={shot} clauses={marked} />
-          </ScrollView>
-
-          {/*
-            사진 자체를 눌러 닫게 하면 스크롤하려고 손을 댈 때마다 닫힙니다.
-            닫는 버튼을 따로 둡니다.
-          */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.zoomClose,
-              pressed && styles.zoomClosePressed,
-            ]}
-            onPress={() => setZoom(false)}
-            accessibilityRole="button"
-            accessibilityLabel="닫기"
-          >
-            <Text style={styles.zoomCloseText}>닫기</Text>
-          </Pressable>
-        </View>
-      </Modal>
+        uri={shot}
+        clauses={marked}
+        onClose={() => setZoom(false)}
+      />
     </>
   );
 }
@@ -331,7 +309,12 @@ const styles = StyleSheet.create({
     가로만 정합니다. 높이는 MarkedShot 이 사진의 원래 비율로 잡습니다.
     여기서 높이를 고정하면 사진이 눌리면서 띠 위치가 어긋납니다.
   */
-  shot: { width: 56 },
+  shot: {
+    width: 56,
+    height: 72,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
   headText: { flex: 1, minWidth: 0, gap: space.xs },
   place: { fontSize: font.small, color: colors.mintText, fontWeight: weight.semibold },
   title: { fontSize: font.h2, fontWeight: weight.bold, color: colors.navy },
@@ -346,31 +329,25 @@ const styles = StyleSheet.create({
   },
   devNoticeText: { fontSize: font.small, color: colors.amber, lineHeight: 19 },
 
-  /* 사진 크게 보기 */
-  zoomBack: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.92)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: space.md,
-    gap: space.md,
-  },
-  zoomScroll: { alignSelf: "stretch" },
-  zoomBody: { padding: space.md },
-  zoomClose: {
-    alignSelf: "stretch",
-    minHeight: minTouch,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.grayLight,
+  /* 썸네일 위의 표시 개수 */
+  shotBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: radius.full,
+    borderWidth: 2,
+    borderColor: colors.bg,
+    backgroundColor: colors.red,
     alignItems: "center",
     justifyContent: "center",
   },
-  zoomClosePressed: { backgroundColor: "rgba(255, 255, 255, 0.12)" },
-  zoomCloseText: {
+  shotBadgeText: {
     color: colors.white,
-    fontSize: font.body,
-    fontWeight: weight.semibold,
+    fontSize: font.tiny,
+    fontWeight: weight.bold,
   },
 
   list: { gap: space.sm },
