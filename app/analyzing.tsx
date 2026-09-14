@@ -21,6 +21,7 @@ import { router } from "expo-router";
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   Pressable,
   StyleSheet,
   Text,
@@ -64,21 +65,34 @@ const FACTS = [
 ];
 
 /**
- * 진행 막대 4칸과 그때 보여줄 문구.
- * at 은 "이 초가 지나면" 이라는 뜻입니다. 목 모드는 2초, 실제 서버는 보통 10~20초입니다.
+ * 진행 막대가 끝까지 차는 데 걸리는 시간 (밀리초).
+ *
+ * 실측으로 서버 판정이 8~9초입니다. 거기에 여유를 둬서 10초로 잡았습니다.
+ * 이 값은 연출 길이일 뿐이고, 요청을 끊는 타임아웃은 lib/api.ts 의 45초입니다.
+ * 둘을 같게 만들면 조금 느린 응답을 정상인데도 끊어버립니다.
+ */
+const PROGRESS_MS = 10_000;
+
+/**
+ * 단계별 문구. at 은 "이 초가 지나면" 이라는 뜻입니다.
+ * PROGRESS_MS 10초에 맞춰 네 단계를 고르게 뒀습니다. 목 모드는 2초에 끝나서
+ * 두 번째 단계까지만 보입니다.
  */
 const STAGES = [
   { at: 0, label: "잠시만 기다려 주세요" },
-  { at: 4, label: "계약서 글자를 읽고 있어요" },
-  { at: 10, label: `항목 ${CHECK_ORDER.length}개를 하나씩 확인하고 있어요` },
-  { at: 18, label: "결과를 정리하고 있어요" },
+  { at: 3, label: "계약서 글자를 읽고 있어요" },
+  { at: 6, label: `항목 ${CHECK_ORDER.length}개를 하나씩 확인하고 있어요` },
+  { at: 9, label: "결과를 정리하고 있어요" },
 ];
 
-/** 이 초가 지나면 제목을 바꿉니다. 타임아웃은 45초입니다. */
-const SLOW_AFTER = 20;
+/**
+ * 이 초가 지나면 제목을 바꿉니다. 연출 10초 + 여유 2초.
+ * 요청을 끊는 타임아웃은 45초입니다 (lib/api.ts).
+ */
+const SLOW_AFTER = 12;
 
-/** 정보 카드가 바뀌는 간격 (밀리초) */
-const FACT_INTERVAL = 4500;
+/** 정보 카드가 바뀌는 간격 (밀리초). 10초에 세 장이 한 바퀴 돕니다. */
+const FACT_INTERVAL = 3300;
 
 export default function Analyzing() {
   const [errorKind, setErrorKind] = useState<ApiErrorKind | null>(null);
@@ -87,6 +101,8 @@ export default function Analyzing() {
   const [elapsed, setElapsed] = useState(0);
   const [factIndex, setFactIndex] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
+  /** 진행 막대. 0 → 0.9 로 움직입니다. 아래 useEffect 주석을 보세요 */
+  const progress = useRef(new Animated.Value(0)).current;
 
   /* 분석 — 이 흐름은 건드리지 않습니다 */
   useEffect(() => {
@@ -126,6 +142,32 @@ export default function Analyzing() {
     const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, [errorKind, attempt]);
+
+  /*
+   * 진행 막대 — 10초에 걸쳐 끊기지 않고 차오릅니다.
+   *
+   * 0.9(90%)까지만 갑니다. 10초가 지나도 응답이 안 오면 막대가 끝에 붙어
+   * 멈춘 것처럼 보이는데, 90% 에서 기다리면 "아직 진행 중" 으로 읽힙니다.
+   * 실제로는 8~9초에 결과 화면으로 넘어가서 끝을 볼 일이 거의 없습니다.
+   *
+   * Easing.out 을 쓰는 이유: 초반이 빠르면 같은 시간도 짧게 느껴집니다.
+   * useNativeDriver 는 false 여야 합니다. width 는 네이티브 드라이버로 못 돌립니다.
+   * 10초에 한 번 도는 애니메이션이라 성능 문제는 없습니다.
+   */
+  useEffect(() => {
+    if (errorKind) return;
+
+    progress.setValue(0);
+    const anim = Animated.timing(progress, {
+      toValue: 0.9,
+      duration: PROGRESS_MS,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    });
+    anim.start();
+
+    return () => anim.stop();
+  }, [errorKind, attempt, progress]);
 
   /* 정보 카드 넘기기 */
   useEffect(() => {
@@ -253,18 +295,32 @@ export default function Analyzing() {
           <Text style={styles.factLaw}>{fact.law}</Text>
         </Animated.View>
 
+        {/*
+          진행 막대. 값은 progress 가 들고 있어서 화면을 다시 그리지 않고 움직입니다.
+          읽어주는 기기에는 경과 시간으로 대략의 퍼센트를 알려줍니다.
+        */}
         <View
-          style={styles.bars}
+          style={styles.track}
           accessible
           accessibilityRole="progressbar"
           accessibilityLabel="분석 진행 중"
+          accessibilityValue={{
+            min: 0,
+            max: 100,
+            now: Math.min(90, Math.round((elapsed / (PROGRESS_MS / 1000)) * 90)),
+          }}
         >
-          {STAGES.map((s, i) => (
-            <View
-              key={s.at}
-              style={[styles.bar, i <= stage && styles.barOn]}
-            />
-          ))}
+          <Animated.View
+            style={[
+              styles.fill,
+              {
+                width: progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+              },
+            ]}
+          />
         </View>
       </View>
     </View>
@@ -331,14 +387,20 @@ const styles = StyleSheet.create({
   },
 
   /* 진행 막대 */
-  bars: { flexDirection: "row", gap: space.xs, marginTop: space.xl },
-  bar: {
-    width: 22,
-    height: 3,
+  track: {
+    width: 140,
+    height: 4,
+    marginTop: space.xl,
     borderRadius: radius.sm,
     backgroundColor: colors.line,
+    // 채움이 둥근 모서리 밖으로 새지 않게 합니다
+    overflow: "hidden",
   },
-  barOn: { backgroundColor: colors.mint },
+  fill: {
+    height: "100%",
+    borderRadius: radius.sm,
+    backgroundColor: colors.mint,
+  },
 
   /* 에러 표시 */
   badge: {
