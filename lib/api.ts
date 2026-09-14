@@ -98,6 +98,8 @@ function toClause(raw: unknown, id: CheckId): Clause {
         ? o.plain
         : "이 항목은 확인하지 못했어요.",
     law: typeof o.law === "string" ? o.law : "",
+    // 옛 서버는 lawText 를 안 보냅니다. 그때는 빈 문자열로 두고 화면에서 숨깁니다.
+    lawText: typeof o.lawText === "string" ? o.lawText : "",
     scripts: {
       soft: o.scripts?.soft ?? "",
       firm: o.scripts?.firm ?? "",

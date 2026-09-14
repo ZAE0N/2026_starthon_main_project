@@ -79,6 +79,8 @@ class Clause(BaseModel):
     original: str = ""
     plain: str
     law: str = ""
+    #: 조문 전문. laws.json 의 lawText 를 그대로 보냅니다 (AI 가 만든 값이 아닙니다)
+    lawText: str = ""
     scripts: Scripts
 
 

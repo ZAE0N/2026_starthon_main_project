@@ -49,8 +49,14 @@ export type Clause = {
   original: string;
   /** 쉬운 말 설명 */
   plain: string;
-  /** 근거 조문 (예: "최저임금법 제6조") */
+  /** 근거 조문 번호 (예: "최저임금법 제6조") */
   law: string;
+  /**
+   * 근거 조문의 전문. 번호만 보여주면 사용자가 확인할 방법이 없습니다.
+   * 서버가 laws.json 에서 그대로 보냅니다. AI 가 만든 문장이 아닙니다.
+   * 옛 서버는 이 값을 안 보내므로 빈 문자열일 수 있습니다.
+   */
+  lawText: string;
   /** 사장님에게 말할 문장. 문제없음이면 빈 문자열 */
   scripts: {
     soft: string;
