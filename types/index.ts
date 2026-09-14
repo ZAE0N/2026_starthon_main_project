@@ -58,12 +58,6 @@ export type Clause = {
   };
 };
 
-/**
- * 사용자가 말 꺼내기를 실제로 했는지.
- * 이 프로젝트의 핵심 지표입니다. 말할 문장 화면에서 한 번 묻습니다.
- */
-export type FollowUp = "요청함" | "못함" | "수정됨";
-
 /** 계약서 한 장의 검진 결과 */
 export type InspectResult = {
   id: string;
@@ -81,8 +75,6 @@ export type InspectResult = {
   basedOn: string;
   /** 기록함에 표시할 이름. 사용자가 나중에 붙임 */
   title?: string;
-  /** 말 꺼내기를 실제로 했는지 */
-  followUp?: FollowUp;
 };
 
 /**
