@@ -32,10 +32,26 @@ def load() -> dict[str, Any]:
 
 
 def law_of(check_id: str) -> str:
-    """근거 조문. AI 가 만들어내게 두지 않고 여기서 가져다 씁니다."""
+    """근거 조문 번호. AI 가 만들어내게 두지 않고 여기서 가져다 씁니다."""
     for c in load()["checks"]:
         if c["id"] == check_id:
             return c.get("law", "")
+    return ""
+
+
+def law_text_of(check_id: str) -> str:
+    """
+    조문 전문. 조항 상세 화면의 근거 칸에 조문 번호와 같이 보여줍니다.
+
+    번호만 있으면 사용자가 확인할 방법이 없습니다. 법을 찾아볼 사람은 드물고,
+    그 자리에서 무슨 내용인지 읽을 수 있어야 판정을 믿거나 의심할 수 있습니다.
+
+    law_of 와 같은 이유로 여기서 가져다 씁니다. AI 가 조문을 지어내면
+    그럴듯하게 틀린 문장이 나오고, 사용자는 그걸 법이라고 믿습니다.
+    """
+    for c in load()["checks"]:
+        if c["id"] == check_id:
+            return c.get("lawText", "")
     return ""
 
 

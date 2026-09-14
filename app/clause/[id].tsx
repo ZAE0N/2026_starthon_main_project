@@ -116,6 +116,17 @@ export default function ClauseDetail() {
           <Text style={styles.law}>
             {clause.law}
           </Text>
+
+          {/*
+            조문 전문. 번호만 보여주면 사용자가 확인할 방법이 없습니다.
+            서버가 laws.json 에서 그대로 보내는 값이라 AI 가 만든 문장이 아닙니다.
+            옛 서버는 이 값을 안 보내므로 비어 있으면 숨깁니다.
+          */}
+          {clause.lawText !== "" && (
+            <Text style={styles.lawText}>
+              {clause.lawText}
+            </Text>
+          )}
         </View>
       )}
 
@@ -191,6 +202,12 @@ const styles = StyleSheet.create({
     color: colors.navy,
   },
 
+  lawText: {
+    marginTop: space.sm,
+    fontSize: font.small,
+    color: colors.navySoft,
+    lineHeight: 21,
+  },
   law: {
     alignSelf: "flex-start",
     backgroundColor: colors.surface,

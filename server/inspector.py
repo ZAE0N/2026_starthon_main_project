@@ -330,6 +330,7 @@ def _to_clause(raw: Any, check_id: str) -> Clause:
         original=original,
         plain=plain.strip(),
         law=laws.law_of(check_id),  # AI 가 아니라 laws.json 에서
+        lawText=laws.law_text_of(check_id),  # 같은 이유로 laws.json 에서
         scripts=Scripts(soft=soft, firm=firm),
     )
 

@@ -21,7 +21,7 @@ import {
   View,
 } from "react-native";
 import { countIllegal, getIssues, type InspectResult } from "../types";
-import { setCurrent } from "../lib/session";
+import { setCurrent, setCurrentPhoto } from "../lib/session";
 import { deleteResult, loadHistory, updateResult } from "../lib/storage";
 import { copy } from "../constants/copy";
 import {
@@ -76,6 +76,18 @@ export default function History() {
 
   /** 과거 결과를 열려면 session 에 실어준 뒤 결과 화면으로 보냅니다. */
   function open(item: InspectResult) {
+    /*
+     * 세션 사진을 먼저 비웁니다.
+     *
+     * 결과 화면은 imagePath 가 비어 있으면 세션 사진으로 되돌아갑니다.
+     * (사진 복사가 실패했을 때 방금 찍은 계약서를 보여주려고 그렇게 뒀습니다)
+     * 그런데 여기서 안 비우면, 옛 기록을 열었을 때 마지막으로 찍은 사진이
+     * 그 기록의 사진인 것처럼 붙습니다. 판정이 반려된 사진이 옛 기록에
+     * 붙는 일도 생깁니다.
+     *
+     * 옛 기록에는 살아 있는 세션 사진이 없는 게 맞습니다.
+     */
+    setCurrentPhoto(null);
     setCurrent(item);
     router.push("/result");
   }
