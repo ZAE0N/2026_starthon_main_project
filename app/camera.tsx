@@ -43,7 +43,7 @@ type Source = "camera" | "library";
 
 /** 시안 2번의 "글자가 잘리지 않게 전체가 보이도록" 을 실제로 지킬 수 있게 풀어 썼습니다. */
 const TIPS = [
-  "네 귀퉁이가 모두 보이게 맞춰주세요",
+  "초록 네모처럼 네 귀퉁이가 모두 보이게 맞춰주세요",
   "밝은 곳에서, 그림자가 지지 않게 찍어주세요",
   "뒷장이 있으면 따로 한 번 더 확인해 주세요",
 ];
@@ -91,7 +91,7 @@ export default function Camera() {
       <View style={styles.guide}>
         <Text style={styles.title}>계약서 전체가 보이게 찍어주세요</Text>
         <Text style={styles.sub}>
-          아래 그림처럼 계약서 한 장이 화면에 다 들어오면 돼요.
+          아래 초록 네모처럼 계약서 한 장이 화면에 다 들어오면 돼요.
         </Text>
 
         {/* 촬영 예시 그림 — 실제 카메라 화면이 아닙니다 */}
@@ -238,8 +238,10 @@ const styles = StyleSheet.create({
     aspectRatio: 0.74,
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
+    // 초록 점선. 귀퉁이 표시만으로는 "여기에 맞춰라" 가 덜 읽힙니다
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: colors.green,
     padding: space.md,
     justifyContent: "center",
     gap: space.sm,
@@ -255,37 +257,48 @@ const styles = StyleSheet.create({
   skeletonMid: { width: "78%" },
   skeletonShort: { width: "45%" },
 
+  /*
+   * 가이드 프레임의 네 귀퉁이.
+   *
+   * 초록으로 바꾸고 크기를 키웠습니다. "가이드 라인이 없어서 어떻게 찍어야
+   * 할지 모르겠다" 는 지적이 있었는데, 전에는 민트색 22px 이라 눈에 잘
+   * 들어오지 않았습니다.
+   *
+   * 이건 촬영 전 안내 그림입니다. 실제 카메라 화면 위에 겹치는 것이 아닙니다.
+   * 그건 expo-camera 가 필요하고, 이 프로젝트는 폰 기본 카메라를 씁니다.
+   * (AGENTS.md, SETUP.md)
+   */
   corner: {
     position: "absolute",
-    width: 22,
-    height: 22,
-    borderColor: colors.mint,
-    borderWidth: 3,
+    width: 30,
+    height: 30,
+    borderColor: colors.green,
+    borderWidth: 4,
   },
   cornerTL: {
-    top: -3,
-    left: -3,
+    top: -4,
+    left: -4,
     borderRightWidth: 0,
     borderBottomWidth: 0,
     borderTopLeftRadius: radius.sm,
   },
   cornerTR: {
-    top: -3,
-    right: -3,
+    top: -4,
+    right: -4,
     borderLeftWidth: 0,
     borderBottomWidth: 0,
     borderTopRightRadius: radius.sm,
   },
   cornerBL: {
-    bottom: -3,
-    left: -3,
+    bottom: -4,
+    left: -4,
     borderRightWidth: 0,
     borderTopWidth: 0,
     borderBottomLeftRadius: radius.sm,
   },
   cornerBR: {
-    bottom: -3,
-    right: -3,
+    bottom: -4,
+    right: -4,
     borderLeftWidth: 0,
     borderTopWidth: 0,
     borderBottomRightRadius: radius.sm,
