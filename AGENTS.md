@@ -223,7 +223,11 @@ await saveResult(result, photo.uri);   // 사진 복사까지 한 번에
 
 ## 자주 틀리는 것
 
-- **`expo-camera` 를 쓰지 않습니다.** `lib/photo.ts` 만 씁니다.
+- **사진은 `lib/photo.ts` 를 통해서만 가져옵니다.** 화면에서 직접 base64 를
+  만들지 마세요. 축소를 안 하면 실제 계약서 사진에서 서버가 거부합니다.
+  2026-09-15 부터 `expo-camera` 를 씁니다(앱 안 촬영 + 초록 가이드 네모).
+  촬영 결과도 `photoFromShot()` 으로 같은 축소 파이프라인을 태웁니다.
+  앱 안 카메라가 안 되면 `takePhoto()`(폰 기본 카메라)로 되돌아갑니다.
 - **`mediaTypes` 값**: 최신 버전은 `["images"]`, 예전 버전은
   `ImagePicker.MediaTypeOptions.Images` 입니다. 에러가 나면 바꿔보세요.
 - **텍스트는 반드시 `<Text>` 로 감쌉니다.** 맨 문자열을 두면 앱이 죽습니다.
