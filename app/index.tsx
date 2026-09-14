@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView, SafeAreaView } from 'rea
 import { useRouter } from 'expo-router';
 import { colors, space, radius, font, weight, screenPadding, minTouch } from '../constants/theme';
 import { copy } from '../constants/copy';
+import { CHECK_LABELS, CHECK_ORDER } from '../types';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -13,24 +14,42 @@ export default function HomeScreen() {
         
         {/* 헤더 / 타이틀 영역 */}
         <View style={styles.header}>
-          <Text style={styles.badge}>알바 권익 진단 툴</Text>
+          <Text style={styles.badge}>CheckUp</Text>
           <Text style={styles.title}>내 근로계약서,{'\n'}문제없을까요?</Text>
           <Text style={styles.subtitle}>
-            사진 한 장만 찍으면 AI가 위법 조항을 찾아 진단해 드려요.
+            사진 한 장만 찍으면 문제가 될 수 있는 조항을 찾아드려요.
           </Text>
         </View>
 
-        {/* 통계 지표 영역 (민트 세로선 + 큰 숫자 시안 반영) */}
-        <View style={styles.statCard}>
-          <View style={styles.statLine} />
-          <View style={styles.statContent}>
-            <View style={styles.statNumberRow}>
-              <Text style={styles.statNumber}>89</Text>
-              <Text style={styles.statPercent}>%</Text>
+        {/*
+          카드 두 장. 예전에는 "89%" 하나만 있었는데 그 숫자의 출처를 대지 못해
+          빼고, 우리가 실제로 가진 사실로 채웠습니다. (PROGRESS.md 의 R6)
+
+          항목 개수는 CHECK_ORDER 에서 세서 씁니다. 숫자를 적어두면 항목이 늘거나
+          줄었을 때 이 화면이 거짓이 됩니다. analyzing.tsx 도 같은 이유로 그렇게 했습니다.
+        */}
+        <View style={styles.cards}>
+          <View style={styles.infoCard}>
+            <View style={styles.infoLine} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoTitle}>
+                {CHECK_ORDER.length}가지를 확인해요
+              </Text>
+              <Text style={styles.infoBody}>
+                {CHECK_ORDER.map((id) => CHECK_LABELS[id]).join(' · ')}
+              </Text>
             </View>
-            <Text style={styles.statLabel}>
-              청소년·청년 알바생 근로계약서 중{'\n'}독소 조항 또는 독소 내용 포함 비율
-            </Text>
+          </View>
+
+          <View style={styles.infoCard}>
+            <View style={styles.infoLine} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoTitle}>말 꺼낼 문장까지 알려줘요</Text>
+              <Text style={styles.infoBody}>
+                문제를 찾는 데서 끝나지 않아요. 사장님께 어떻게 말하면 되는지
+                두 가지 말투로 준비해 드려요.
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -90,6 +109,8 @@ const styles = StyleSheet.create({
     minHeight: '100%',
   },
   header: {
+    // 문구가 화면 위에 붙어 보인다는 지적이 있어 한 칸 내렸습니다.
+    marginTop: space.xl,
     marginBottom: space.lg,
   },
   badge: {
@@ -110,44 +131,31 @@ const styles = StyleSheet.create({
     color: colors.navySoft,
     lineHeight: 22,
   },
-  statCard: {
+  cards: { gap: space.sm, marginVertical: space.md },
+  infoCard: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
     padding: space.md,
     borderRadius: radius.md,
-    alignItems: 'center',
-    marginVertical: space.md,
   },
-  statLine: {
+  infoLine: {
     width: 4,
-    height: '100%',
+    alignSelf: 'stretch',
     backgroundColor: colors.mint,
     borderRadius: radius.full,
     marginRight: space.md,
   },
-  statContent: {
-    flex: 1,
-  },
-  statNumberRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  statNumber: {
-    fontSize: 36,
-    fontWeight: weight.bold,
+  infoContent: { flex: 1 },
+  infoTitle: {
+    fontSize: font.body,
+    fontWeight: weight.semibold,
     color: colors.navy,
   },
-  statPercent: {
-    fontSize: font.h2,
-    fontWeight: weight.bold,
-    color: colors.navy,
-    marginLeft: 2,
-  },
-  statLabel: {
+  infoBody: {
+    marginTop: space.xs,
     fontSize: font.small,
     color: colors.gray,
-    marginTop: space.xs,
-    lineHeight: 18,
+    lineHeight: 19,
   },
   actionContainer: {
     marginTop: space.lg,
