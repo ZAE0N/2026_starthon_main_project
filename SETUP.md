@@ -44,11 +44,15 @@ expo-image-picker                          사진 찍기·갤러리에서 고르
 expo-image-manipulator                     해상도 축소 (합의된 예외 1건)
 expo-file-system                           사진 저장
 @react-native-async-storage/async-storage  판정 결과 저장
-expo-clipboard                             말할 문장 복사
+expo-clipboard                             (2026-09-14 현재 쓰지 않음 — 아래 참고)
 ```
 
 `expo-camera` 는 설치하지 않습니다. 폰 기본 카메라를 쓰기 때문에 필요 없습니다.
 안 쓰는 패키지가 있으면 AI가 그걸로 코드를 만들어서 오히려 방해가 됩니다.
+
+> **`expo-clipboard`** — 말할 문장을 복사하는 데 썼지만 2026-09-14 에 복사 버튼을
+> 빼면서 쓰는 곳이 없어졌습니다. `package.json` 에는 아직 남아 있습니다.
+> 복사를 다시 넣을 계획이 없으면 지우는 게 맞습니다. 위 문장이 그 이유입니다.
 
 **Expo SDK 57 / React Native 0.86 / React 19** 를 씁니다.
 
@@ -64,8 +68,15 @@ npx expo start
 
 폰에 **Expo Go** 를 깔고 QR을 찍습니다.
 
+`.env` 에서 채우는 건 `EXPO_PUBLIC_API_TOKEN` 한 줄뿐입니다.
+서버 주소는 `lib/api.ts` 의 `DEFAULT_API_URL` 에 기본값이 있어서, 로컬에서 띄운
+서버에 붙일 때만 `.env` 에 적습니다.
+
 > `.env` 값을 바꾸면 저장만으로는 반영되지 않습니다.
 > `npx expo start -c` 로 캐시를 지우고 다시 시작하세요.
+
+폰과 같은 와이파이에 붙을 수 없는 PC 라면 `--tunnel` 이 필요합니다.
+실행 방법과 증상별 조치는 `RUN_EXPO_GO.md` 에 있습니다.
 
 ---
 
@@ -84,6 +95,10 @@ npx expo start
 ## 서버 없이 개발하기
 
 `.env` 의 `EXPO_PUBLIC_USE_MOCK=true` 면 가짜 결과가 돌아옵니다.
+기본값은 `false` 이고, 그때는 배포된 서버가 실제로 판정합니다.
+
+**분석이 2초에 끝나면 목 모드입니다.** 실제 판정은 6~7초 걸립니다.
+어떤 계약서를 넣어도 결과가 같으면 이 값을 먼저 확인하세요.
 
 에러 화면을 만들 때는 `EXPO_PUBLIC_MOCK_ERROR` 에
 `timeout` `network` `server` `unreadable` `notContract` 중 하나를 넣고
