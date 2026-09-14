@@ -45,9 +45,16 @@ expo-image-manipulator                     해상도 축소 (합의된 예외 1�
 expo-file-system                           사진 저장
 @react-native-async-storage/async-storage  판정 결과 저장
 expo-clipboard                             (2026-09-14 현재 쓰지 않음 — 아래 참고)
+expo-camera                                앱 안 촬영 + 초록 가이드 네모
+lucide-react-native / react-native-svg     아이콘
 ```
 
-`expo-camera` 는 설치하지 않습니다. 폰 기본 카메라를 쓰기 때문에 필요 없습니다.
+`expo-camera` 는 2026-09-15 에 추가했습니다. 앱 안에서 미리보기를 띄우고
+그 위에 초록 가이드 네모를 겹치려면 필요합니다. 폰 기본 카메라 화면에는
+우리가 아무것도 그릴 수 없습니다.
+
+앱 안 카메라가 안 되면 기존 `takePhoto()`(폰 기본 카메라)로 되돌아갑니다.
+촬영이 막히면 앱 전체가 멈추므로 되돌아갈 길을 남겨뒀습니다.
 안 쓰는 패키지가 있으면 AI가 그걸로 코드를 만들어서 오히려 방해가 됩니다.
 
 > **`expo-clipboard`** — 말할 문장을 복사하는 데 썼지만 2026-09-14 에 복사 버튼을

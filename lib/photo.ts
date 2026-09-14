@@ -48,12 +48,33 @@ async function toPhoto(
   if (result.canceled) return null;
   const asset = result.assets?.[0];
   if (!asset?.uri) return null;
+  return shrink(asset.uri, asset.width ?? 0, asset.height ?? 0);
+}
 
-  const width = asset.width ?? 0;
-  const height = asset.height ?? 0;
+/**
+ * 앱 안 카메라(expo-camera)로 찍은 사진을 같은 파이프라인에 태웁니다.
+ *
+ * ImagePicker 결과와 모양이 달라서 따로 받습니다. 축소와 base64 는 아래
+ * shrink() 가 똑같이 처리합니다. 두 경로가 갈리면 한쪽만 용량이 커져서,
+ * 실제 계약서 사진에서만 서버가 거부하는 상황이 생깁니다.
+ */
+export async function photoFromShot(shot: {
+  uri: string;
+  width?: number;
+  height?: number;
+}): Promise<Photo | null> {
+  if (!shot?.uri) return null;
+  return shrink(shot.uri, shot.width ?? 0, shot.height ?? 0);
+}
 
+/** 긴 변을 줄이고 base64 를 만듭니다. 두 경로가 같이 씁니다. */
+async function shrink(
+  uri: string,
+  width: number,
+  height: number
+): Promise<Photo | null> {
   try {
-    const context = ImageManipulator.manipulate(asset.uri);
+    const context = ImageManipulator.manipulate(uri);
 
     if (Math.max(width, height) > MAX_EDGE) {
       // 한쪽만 지정하면 나머지는 비율에 맞춰 자동 계산됩니다.
@@ -75,10 +96,10 @@ async function toPhoto(
   }
 
   try {
-    const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+    const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: "base64",
     });
-    return { uri: asset.uri, base64 };
+    return { uri, base64 };
   } catch {
     return null;
   }
