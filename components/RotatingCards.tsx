@@ -272,8 +272,9 @@ const styles = StyleSheet.create({
   /*
    * 한 장만 보이니까 크게 잡았습니다.
    *
-   * 배경은 흰색이 아니라 surface(#F7F9FC)입니다. 화면이 흰색이라 카드도
-   * 흰색이면 테두리로만 구분되고 카드로 안 읽힙니다.
+   * 배경은 mintBg(#EAFAF7)입니다. 흰색이면 테두리로만 구분되고 카드로 안
+   * 읽히고, surface(#F7F9FC)는 흰색과 너무 비슷해서 회색 덩어리로 보였습니다.
+   * 포인트 색 계열이라 앱 전체와도 맞습니다.
    *
    * 그림자는 **아래쪽에만** 둡니다. 사방에 퍼지면 테두리를 두 번 그린 것처럼
    * 보이는데, 아래로만 내리면 공중에 떠 있는 느낌이 납니다.
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
    */
   card: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.mintBg,
     borderRadius: radius.lg,
     paddingVertical: space.lg,
     paddingHorizontal: space.lg,
@@ -293,11 +294,22 @@ const styles = StyleSheet.create({
     boxShadow: "0 8px 14px -6px rgba(18, 41, 77, 0.16)",
   },
 
+  /*
+   * 제목·본문·근거가 카드마다 같은 자리에 오게 합니다.
+   *
+   * 제목은 카드 맨 위에서 시작하고, **두 줄 높이를 미리 비워둡니다.**
+   * 한 줄짜리 제목과 두 줄짜리 제목이 섞여 있어서, 비워두지 않으면 본문이
+   * 카드마다 다른 높이에서 시작합니다. 바뀔 때마다 글자가 위아래로 튑니다.
+   *
+   * 근거 조문은 카드 맨 아래에 붙입니다(lawRow 의 marginTop: "auto").
+   * 그래서 본문 길이가 달라도 제목과 근거는 항상 같은 자리입니다.
+   */
   title: {
     fontSize: font.h2,
     fontWeight: weight.bold,
     color: colors.navy,
     lineHeight: 28,
+    minHeight: 56,
   },
   body: {
     fontSize: font.body,
@@ -310,7 +322,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.xs,
-    marginTop: space.xs,
+    /* 카드 맨 아래에 붙입니다. 본문 길이와 무관하게 같은 자리입니다 */
+    marginTop: "auto",
   },
   lawDot: {
     width: 4,

@@ -29,7 +29,6 @@ import {
   Linking,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -161,15 +160,19 @@ export default function Camera() {
 
   return (
     <>
-    <ScrollView
-      contentContainerStyle={styles.screen}
-      keyboardShouldPersistTaps="handled"
-    >
+    {/*
+      스크롤하지 않는 고정 화면입니다.
+
+      전에는 ScrollView 였는데, 촬영 직전에 훑어볼 안내가 화면을 넘어가면
+      아래 촬영 버튼이 보이지 않아서 스크롤을 해야 했습니다. 안내 몇 줄 때문에
+      버튼을 찾게 만들 이유가 없습니다.
+
+      대신 위쪽 부제를 뺐고, 예시 그림이 화면 높이에 맞춰 줄어듭니다
+      (styles.paper 의 maxHeight). 작은 폰에서도 버튼이 밀려나지 않습니다.
+    */}
+    <View style={styles.screen}>
       <View style={styles.guide}>
         <Text style={styles.title}>계약서 전체가 보이게 찍어주세요</Text>
-        <Text style={styles.sub}>
-          아래 초록 네모처럼 계약서 한 장이 화면에 다 들어오면 돼요.
-        </Text>
 
         {/*
           조건 질문(사업장 규모·나이)은 이 화면에 있었는데 app/ask.tsx 로 뺐습니다.
@@ -274,7 +277,7 @@ export default function Camera() {
           이미 찍어둔 계약서 사진이 있다면 갤러리에서 골라도 돼요.
         </Text>
       </View>
-    </ScrollView>
+    </View>
 
     {/*
       앱 안 카메라. expo-camera 미리보기 위에 초록 가이드 네모를 겹칩니다.
@@ -384,7 +387,7 @@ async function hasPermission(source: Source): Promise<boolean> {
 
 const styles = StyleSheet.create({
   screen: {
-    flexGrow: 1,
+    flex: 1,
     padding: screenPadding,
     justifyContent: "space-between",
     backgroundColor: colors.bg,
@@ -400,9 +403,19 @@ const styles = StyleSheet.create({
   },
 
   /* 촬영 예시 그림 */
-  artWrap: { alignItems: "center", marginTop: space.lg },
+  /*
+   * 예시 그림. flex 로 남는 공간을 받고, 그 안에서 그림이 줄어듭니다.
+   * 작은 폰에서 그림이 버튼을 밀어내지 않게 하려는 것입니다.
+   */
+  artWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: space.md,
+  },
   paper: {
     width: "68%",
+    maxHeight: "100%",
     aspectRatio: 0.74,
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
