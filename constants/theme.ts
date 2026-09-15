@@ -87,6 +87,22 @@ export const screenPadding = space.lg;
 export const minTouch = 44;
 
 /**
+ * 카메라 가이드 네모의 색. (app/camera.tsx, lib/frameFit.ts)
+ *
+ * 어두운 미리보기 위에 올리는 색이라 colors.green(#1E7A42)은 너무 어둡습니다.
+ * 밝게 하되 형광색은 피했습니다. 계약서를 찍는 화면에서 네모가 제일 튀면
+ * 정작 계약서를 못 봅니다.
+ *
+ * ok   : 맞았을 때. 밝은 초록
+ * wait : 아직 아닐 때. 빨강 대신 회색입니다 — 계약서를 아직 못 맞춘 것은
+ *        고장이 아니라 진행 중이고, 빨강은 뭔가 잘못됐다는 뜻으로 읽힙니다
+ */
+export const guideColor = {
+  ok: "#2FD08A",
+  wait: "#C8CFDA",
+} as const;
+
+/**
  * 계약서 사진 위에 긋는 형광펜 색. (components/MarkedShot.tsx)
  *
  * 판정 3색(red / amber)을 그대로 쓸 수 없습니다. 글자 위에 올리는 색이라

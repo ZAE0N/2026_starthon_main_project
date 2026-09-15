@@ -71,7 +71,17 @@ Expo Go 를 앱스토어·플레이스토어에서 설치하고, 이미 있으�
 
 ```bash
 git checkout develop && git pull
+npm install
 ```
+
+**`npm install` 을 빼지 마라.** `package.json` 이 바뀐 걸 받으면 패키지 실물이
+없어서 Metro 가 기동할 때 죽는다. 두 번 겪었다.
+
+```
+PluginError: Failed to resolve plugin for module "expo-camera"
+```
+
+받을 게 없으면 몇 초에 끝나니 매번 넣어도 부담이 없다.
 
 서버가 살아 있는지:
 
