@@ -20,7 +20,7 @@
 | `app/result.tsx` "몰랐을 수도 있는 것" | 완료 |
 | `server/conditions.py` | **껍데기.** 김종현이 채운다 |
 | `server/laws.json` `conditions` | **없음.** 김종현이 만든다 |
-| `app/camera.tsx` 질문 칩 | **없음.** 나영웅이 만든다 |
+| `app/camera.tsx` 질문 칩 | **완료 (2026-09-15).** 전정현이 `components/WorkplaceQuestions.tsx` 로 만들었다 |
 
 질문 칩이 없으니 아직 답이 `null` 로만 간다. 서버는 지금과 같이 5인 이상·만 18세 이상
 기준으로 보고 전제에 밝힌다. 즉 **순서에 상관없이 각자 붙이면 된다.**

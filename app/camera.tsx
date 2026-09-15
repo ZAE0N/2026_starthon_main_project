@@ -2,7 +2,7 @@
  * 사진 선택 화면. 담당: 나영웅
  *
  * 화면이 두 겹입니다.
- *   1) 안내 화면 — 초록 네모 삽화와 팁. 실제 촬영 화면이 아닙니다
+ *   1) 안내 화면 — 조건 질문, 초록 네모 삽화와 팁. 실제 촬영 화면이 아닙니다
  *   2) 앱 안 카메라 — "사진 찍기" 를 누르면 전체 화면으로 열립니다.
  *      expo-camera 의 미리보기 위에 초록 가이드 네모를 겹칩니다. 시안 2번입니다
  *
@@ -36,6 +36,7 @@ import {
 } from "react-native";
 import { photoFromShot, pickPhoto, takePhoto } from "../lib/photo";
 import { useFrameFit } from "../lib/frameFit";
+import WorkplaceQuestions from "../components/WorkplaceQuestions";
 import { clearCurrent, setCurrentPhoto } from "../lib/session";
 import { copy } from "../constants/copy";
 import {
@@ -170,6 +171,20 @@ export default function Camera() {
         <Text style={styles.sub}>
           아래 초록 네모처럼 계약서 한 장이 화면에 다 들어오면 돼요.
         </Text>
+
+        {/*
+          조건 질문. 답에 따라 적용되는 법이 달라집니다.
+
+          5명 미만 사업장에는 주 40시간 한도(제50조)가 적용되지 않아서, 이걸
+          모르면 없는 위법을 알려주게 됩니다. 반대로 만 18세 미만은 주 35시간
+          한도(제69조)가 5명 미만인 곳에서도 적용되므로 놓치면 안 됩니다.
+          근거는 근로기준법 시행령 별표1 이고 server/laws.json 의 conditions 에 있습니다.
+
+          답을 강제하지 않습니다. 안 골라도 아래 촬영 버튼은 눌립니다.
+        */}
+        <View style={styles.questions}>
+          <WorkplaceQuestions />
+        </View>
 
         {/* 촬영 예시 그림 — 실제 카메라 화면이 아닙니다 */}
         <View style={styles.artWrap} accessible={false}>
@@ -382,6 +397,7 @@ const styles = StyleSheet.create({
   },
 
   guide: { flex: 1, justifyContent: "center", paddingVertical: space.lg },
+  questions: { marginTop: space.lg },
   title: { fontSize: font.h2, fontWeight: weight.bold, color: colors.navy },
   sub: {
     marginTop: space.sm,
@@ -391,7 +407,7 @@ const styles = StyleSheet.create({
   },
 
   /* 촬영 예시 그림 */
-  artWrap: { alignItems: "center", marginTop: space.lg },
+  artWrap: { alignItems: "center", marginTop: space.md },
   paper: {
     width: "68%",
     aspectRatio: 0.74,

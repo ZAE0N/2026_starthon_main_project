@@ -57,6 +57,12 @@ class Decision:
     #: 비어 있으면 판정은 지금과 똑같이 나옵니다.
     overrides: dict[str, str] = field(default_factory=dict)
 
+    #: 덮어쓸 때 같이 바꿀 설명 문장. {"hours": "5명 미만인 곳에는..."} 형태.
+    #:
+    #: 이게 없으면 배지는 "문제없음" 인데 설명은 "주 60시간이라 한도를 넘어요"
+    #: 가 그대로 남아서 모순이 됩니다. laws.json 의 appliesToText 에서 옵니다.
+    override_texts: dict[str, str] = field(default_factory=dict)
+
 
 def _conditions() -> dict[str, Any]:
     """laws.json 의 conditions. 아직 없으면 빈 딕셔너리."""
@@ -138,8 +144,18 @@ def _apply_minor_hours(answers: Answers, facts: Facts, out: "Decision") -> None:
 
     if facts.weekly_hours > 40:
         out.overrides["hours"] = "위법소지"
+        out.override_texts["hours"] = (
+            f"만 18세 미만은 하루 7시간, 주 35시간까지 일할 수 있어요. "
+            f"합의해도 주 5시간까지만 더 할 수 있는데 계약서에는 "
+            f"주 {facts.weekly_hours:g}시간으로 적혀 있어요."
+        )
     elif facts.weekly_hours > 35:
         out.overrides["hours"] = "확인필요"
+        out.override_texts["hours"] = (
+            f"만 18세 미만은 주 35시간까지가 기본인데 계약서에는 "
+            f"주 {facts.weekly_hours:g}시간으로 적혀 있어요. "
+            f"합의하면 주 5시간까지 더 할 수 있으니 그 내용이 있는지 확인해 주세요."
+        )
 
 
 def decide(answers: Answers, facts: Facts) -> Decision:
@@ -174,9 +190,19 @@ def decide(answers: Answers, facts: Facts) -> Decision:
                 }
             )
 
+        texts = cond.get("appliesToText")
+        texts = texts if isinstance(texts, dict) else {}
+
         for check_id in cond.get("appliesTo") or []:
+            cid = str(check_id)
             # 이미 덮어쓴 항목은 그대로 둔다. 조건이 겹쳐도 결과가 흔들리지 않게.
-            out.overrides.setdefault(str(check_id), "문제없음")
+            if cid in out.overrides:
+                continue
+            out.overrides[cid] = "문제없음"
+
+            text = texts.get(cid)
+            if isinstance(text, str) and text.strip():
+                out.override_texts[cid] = text.strip()
 
     _apply_minor_hours(answers, facts, out)
 

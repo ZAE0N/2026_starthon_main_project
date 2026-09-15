@@ -936,8 +936,22 @@ def build_result(
     if decision.overrides:
         for c in clauses:
             verdict = decision.overrides.get(c.id)
-            if verdict in VERDICTS:
-                c.verdict = verdict  # type: ignore[assignment]
+            if verdict not in VERDICTS:
+                continue
+
+            log.info("조건 반영 %s: %s -> %s", c.id, c.verdict, verdict)
+            c.verdict = verdict  # type: ignore[assignment]
+
+            # 설명을 안 바꾸면 배지는 "문제없음" 인데 문장은 위법이라고 남습니다.
+            # conditions 가 문장을 주면 그걸 쓰고, 없으면 기본 문장을 씁니다.
+            text = decision.override_texts.get(c.id)
+            if text:
+                c.plain = text
+            elif verdict == "문제없음":
+                c.plain = "답해주신 조건에서는 이 규정이 적용되지 않아요."
+
+            if verdict == "문제없음":
+                c.scripts = Scripts(soft="", firm="")
 
     # ── 앱의 숨은 규칙 (lib/api.ts:191-194) ──────────────────────────
     # 8개가 전부 "확인필요" 이면서 인용된 원문이 하나도 없으면, 앱은 200 을 받아도
