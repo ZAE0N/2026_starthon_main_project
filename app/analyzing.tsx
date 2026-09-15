@@ -421,15 +421,6 @@ export default function Analyzing() {
           )}
         </View>
 
-        <View style={styles.dots}>
-          {cards.map((f, i) => (
-            <View
-              key={f.law}
-              style={[styles.dot, i === factIndex && styles.dotOn]}
-            />
-          ))}
-        </View>
-
         <View style={styles.progressRow}>
           <View
             style={styles.track}
@@ -503,14 +494,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dots: { flexDirection: "row", gap: space.sm, marginTop: space.md },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.line,
-  },
-  dotOn: { backgroundColor: colors.mint },
   factValue: {
     fontSize: font.h1,
     fontWeight: weight.bold,
