@@ -4,6 +4,11 @@
  * 이 화면이 서버 호출과 저장까지 담당합니다. 흐름은 건드리지 말고
  * 보이는 부분(스피너, 문구, 통계 카드, 진행 막대)만 다듬어 주세요.
  *
+ * `?replace=<id>` 로 들어오면 판정이 끝난 뒤 그 id 의 옛 기록을 지웁니다.
+ * 결과 화면에서 나이 기준을 바꿨을 때 쓰는 경로입니다. 같은 계약서가 기록함에
+ * 두 번 쌓이지 않게 합니다. **새 결과를 저장한 뒤에** 지웁니다 — 먼저 지우면
+ * 새 판정이 실패했을 때 아무것도 남지 않습니다.
+ *
  * 에러 화면 만드는 법: 서버가 없어도 .env 에서 에러를 만들어낼 수 있습니다.
  *   EXPO_PUBLIC_MOCK_ERROR=timeout   →  npx expo start -c  (캐시 지우기 필수)
  *   timeout / network / server / unreadable / notContract 다섯 가지
@@ -17,7 +22,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator,
   Animated,
@@ -31,7 +36,7 @@ import {
 import { CircleAlert, CircleHelp } from "lucide-react-native";
 import { ApiError, inspectContract, type ApiErrorKind } from "../lib/api";
 import { getCurrentPhoto, setCurrent } from "../lib/session";
-import { saveResult } from "../lib/storage";
+import { deleteResult, saveResult } from "../lib/storage";
 import { copy } from "../constants/copy";
 import { CHECK_ORDER, getMarked } from "../types";
 import {
@@ -127,6 +132,13 @@ const RUSH_MS = 320;
 let nextStart = 0;
 
 export default function Analyzing() {
+  /**
+   * 판정이 끝나면 지울 옛 기록의 id. 없으면 빈 문자열입니다.
+   * 나이 기준을 바꿔서 다시 판정할 때만 들어옵니다. (app/ask.tsx)
+   */
+  const { replace } = useLocalSearchParams<{ replace?: string }>();
+  const replaceId = typeof replace === "string" ? replace : "";
+
   const [errorKind, setErrorKind] = useState<ApiErrorKind | null>(null);
   /**
    * 서버가 알려준 이유. 사진을 왜 못 읽었는지처럼 구체적인 안내입니다.
@@ -201,6 +213,21 @@ export default function Analyzing() {
         // 이 반환값을 setCurrent 에 넣어야 결과·기록함 화면에 사진이 보입니다.
         const saved = await saveResult(result, photo.uri);
 
+        /*
+         * 다시 판정한 경우 옛 기록을 지웁니다. **저장 다음**입니다.
+         * 먼저 지우면 여기까지 오는 사이에 실패했을 때 아무것도 남지 않습니다.
+         *
+         * 실패해도 넘어갑니다. 기록이 하나 더 남는 건 불편한 정도지만,
+         * 여기서 막으면 새 판정을 보여주지 못합니다.
+         */
+        if (replaceId !== "" && replaceId !== saved.id) {
+          try {
+            await deleteResult(replaceId);
+          } catch {
+            // 옛 기록이 남습니다. 기록함에서 직접 지울 수 있습니다.
+          }
+        }
+
         if (!alive) return;
 
         /*
@@ -237,7 +264,7 @@ export default function Analyzing() {
       alive = false;
       if (hold) clearTimeout(hold);
     };
-  }, [attempt, progress]);
+  }, [attempt, progress, replaceId]);
 
   /* 경과 시간 — 단계 문구가 이 값을 봅니다 (막대는 Animated 로 돌립니다) */
   useEffect(() => {
