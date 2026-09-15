@@ -33,6 +33,52 @@ BAND_MIN = 0.35
 BAND_MAX = 3.0
 
 
+# ── 사진이 쓸 만한지 판단할 때 쓰는 값 ─────────────────────────────────
+#
+# ⚠ 전부 **보수적으로** 잡았습니다. 쓸 만한 사진을 거부하는 쪽이 못 쓸 사진을
+#   통과시키는 쪽보다 나쁩니다. 거부당한 사용자는 왜 안 되는지 모르고, 다시
+#   찍어도 또 거부되면 앱을 닫습니다. 애매하면 통과시키고 모델에게 맡깁니다.
+
+#: 글자 줄이 이보다 적으면 계약서로 보지 않습니다.
+#: 실제 계약서는 20줄이 넘습니다. 3은 "거의 아무것도 없다" 수준입니다.
+MIN_BANDS = 3
+
+#: 잉크 비율이 이 범위를 벗어나면 못 읽습니다.
+#: 아래로 벗어나면 빈 종이나 너무 밝게 날아간 사진, 위로 벗어나면 너무 어둡게
+#: 찍혀 종이까지 글자로 잡힌 사진입니다.
+MIN_INK = 0.003
+MAX_INK = 0.5
+
+#: 글자가 있는 영역이 사진의 이 비율보다 작으면 너무 멀리서 찍은 것입니다.
+#:
+#: 0.10 은 가로·세로로 각각 3분의 1 쯤을 차지한다는 뜻이라 글자를 읽을 수 없습니다.
+#: 처음에 0.18 로 뒀다가 8도 기울어진 사진이 반려됐습니다. 기울면 흰 여백이
+#: 붙어서 비율이 떨어지는데, 정상 사진의 실측이 0.17~0.58 이라 문턱이 너무
+#: 가까웠습니다. 쓸 만한 사진을 거부하는 쪽이 더 나쁘므로 여유를 벌렸습니다.
+MIN_TEXT_AREA = 0.10
+
+#: 한 글자 줄 안에서 "글자가 있는 칸" 으로 볼 최소 잉크 비율.
+#:
+#: ROW_INK(0.004) 를 그대로 쓰면 안 됩니다. 그건 줄을 찾을 때의 값이라
+#: 아주 낮은데, 좌우 범위를 잴 때 그 값을 쓰면 JPEG 잡티 하나가 있는 칸까지
+#: 글자로 세서 모든 사진이 "가장자리에 닿았다" 가 됩니다. 실제로 그랬습니다.
+#: 글자 줄 한 줄은 높이가 10px 쯤이라 획이 지나가면 0.2 는 쉽게 넘습니다.
+BAND_COL_INK = 0.2
+
+#: 한 줄이 "글자 줄" 로 인정받으려면 필요한 최소 칸 수와 높이(px).
+#:
+#: 이게 없으면 사진 가장자리의 JPEG 잡티 몇 픽셀이 한 줄로 잡혀서, 여백을
+#: 넉넉히 둔 정상 사진까지 "가장자리에 닿았다" 로 반려됐습니다. 실측으로 확인한
+#: 오작동입니다. 글자가 한 줄 있으면 칸 8개는 가볍게 넘습니다.
+MIN_LINE_COLS = 8
+MIN_LINE_PX = 2
+
+#: 이 비율만큼의 가장자리에 글자가 닿으면 잘린 것으로 봅니다.
+#: 0.005 는 "정말 끝에 붙었다" 는 뜻입니다. 여백을 조금만 두고 찍어도
+#: 걸리지 않게 아주 좁게 잡았습니다.
+EDGE = 0.005
+
+
 def _otsu(hist: list[int]) -> int:
     """
     밝기 히스토그램에서 글자와 배경을 가르는 문턱값.
@@ -105,6 +151,116 @@ def _bands(ratio: list[float]) -> list[tuple[int, int]]:
             merged.append(b)
 
     return merged
+
+
+def _mask(image_base64: str) -> tuple[Image.Image, float] | None:
+    """
+    흑백 잉크 마스크와 잉크 비율. 못 열면 None.
+
+    snap() 과 check() 가 같은 전처리를 씁니다. 한 요청에서 두 번 부르지만
+    900px 로 줄인 이미지라 합쳐도 50ms 안쪽입니다.
+    """
+    try:
+        img = Image.open(io.BytesIO(base64.b64decode(image_base64))).convert("L")
+        if img.width > SNAP_WIDTH:
+            img = img.resize(
+                (SNAP_WIDTH, max(1, round(img.height * SNAP_WIDTH / img.width))),
+                Image.LANCZOS,
+            )
+        thr = _otsu(img.histogram())
+        mono = img.point(lambda v: 255 if v <= thr else 0, mode="L")
+
+        # 전체 평균이 곧 잉크 비율입니다
+        one = mono.resize((1, 1), Image.BOX)
+        ink = list(one.getdata())[0] / 255
+        return mono, ink
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def check(image_base64: str) -> str | None:
+    """
+    판정을 시작하기 전에 사진이 쓸 만한지 봅니다.
+
+    못 쓸 사진이면 사용자에게 보여줄 이유를 돌려주고, 쓸 만하면 None 입니다.
+
+    왜 여기서 막는가:
+      못 쓸 사진을 모델에게 보내면 그럴듯한 오답이 나옵니다. "글자를 못 읽었다"
+      고 말해주는 게 아니라, 보이는 일부만 보고 판정을 만들어 버립니다.
+      사용자는 그게 틀린 줄 모릅니다.
+
+      부수적으로 **OpenAI 호출을 아낍니다.** 못 쓸 사진에는 돈을 쓰지 않습니다.
+
+    무엇을 보는가 — 넷 다 글자 줄을 찾은 결과로 판단합니다
+      1. 글자 줄이 거의 없다        → 계약서가 아니거나 너무 흐리다
+      2. 잉크 비율이 이상하다        → 너무 어둡거나 너무 날아갔다
+      3. 글자 영역이 너무 작다       → 너무 멀리서 찍었다
+      4. 글자가 가장자리에 닿았다     → 화면 밖으로 잘렸다
+
+    배경(어두운 책상 등)이 아니라 **글자 줄**을 기준으로 봅니다. 그래서 종이
+    아래 어두운 책상이 프레임 끝까지 있어도 잘렸다고 하지 않습니다.
+
+    실패하면 None 을 돌려줍니다. 검사가 안 되는 것 때문에 판정을 막지 않습니다.
+    """
+    got = _mask(image_base64)
+    if got is None:
+        return None
+
+    mono, ink = got
+    w, h = mono.size
+
+    bands = _bands(_profile(mono, "rows"))
+
+    # 잉크 비율로 먼저 판단하지 않습니다. 글자 줄을 찾았으면 그게 더 믿을 만한
+    # 신호입니다. 줄을 못 찾았을 때만 잉크 비율로 이유를 설명합니다.
+    # 줄마다 좌우 범위를 재면서 **글자 줄인지**도 같이 걸러냅니다.
+    #
+    # 좌우를 한 덩어리로 재면 안 됩니다. 글자가 있는 영역 전체를 잘라서 칸별
+    # 비율을 보면, 한 칸에 글자가 몇 줄만 지나가니 비율이 너무 낮게 나옵니다.
+    # 문턱을 낮추면 잡티까지 글자로 세게 됩니다. 줄 하나씩 보면 획이 지나가는
+    # 칸의 비율이 충분히 높습니다.
+    lines: list[tuple[int, int, int, int]] = []
+    for b0, b1 in bands:
+        if b1 - b0 + 1 < MIN_LINE_PX:
+            continue
+        cols = _profile(mono.crop((0, b0, w, b1 + 1)), "cols")
+        lit = [i for i, r in enumerate(cols) if r >= BAND_COL_INK]
+        if len(lit) >= MIN_LINE_COLS:
+            lines.append((b0, b1, lit[0], lit[-1]))
+
+    if len(lines) < MIN_BANDS:
+        if ink < MIN_INK:
+            return "글자가 거의 보이지 않아요. 더 밝은 곳에서 다시 찍어주세요."
+        if ink > MAX_INK:
+            return (
+                "사진의 대부분이 어둡게 찍혔어요. "
+                "밝은 곳에서 계약서가 화면을 채우도록 다시 찍어주세요."
+            )
+        return "글자 줄을 찾지 못했어요. 계약서가 화면에 잘 들어오게 다시 찍어주세요."
+
+    if ink > MAX_INK:
+        # 줄은 찾았지만 화면 절반 이상이 잉크입니다. 이때의 줄은 글자가 아니라
+        # 어두운 배경의 얼룩일 가능성이 큽니다.
+        return (
+            "사진의 대부분이 어둡게 찍혔어요. "
+            "밝은 곳에서 계약서가 화면을 채우도록 다시 찍어주세요."
+        )
+
+    top = min(l[0] for l in lines)
+    bottom = max(l[1] for l in lines)
+    left = min(l[2] for l in lines)
+    right = max(l[3] for l in lines)
+
+    area = ((right - left + 1) / w) * ((bottom - top + 1) / h)
+    if area < MIN_TEXT_AREA:
+        return "계약서가 너무 작게 찍혔어요. 조금 더 가까이서 찍어주세요."
+
+    ex = max(2, int(w * EDGE))
+    ey = max(2, int(h * EDGE))
+    if top <= ey or bottom >= h - 1 - ey or left <= ex or right >= w - 1 - ex:
+        return "계약서가 화면 밖으로 잘렸어요. 네 귀퉁이가 모두 보이게 찍어주세요."
+
+    return None
 
 
 def snap(image_base64: str, marks: dict[str, Any]) -> dict[str, Any]:

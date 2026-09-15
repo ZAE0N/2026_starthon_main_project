@@ -990,6 +990,16 @@ def inspect(
     normalized = normalize_image(image_base64)
     t1 = time.monotonic()
 
+    # 못 쓸 사진은 모델에 보내기 전에 돌려보냅니다.
+    #
+    # 흐리거나 잘린 사진을 보내면 모델은 "못 읽었다" 고 하지 않고 보이는 일부로
+    # 판정을 만들어 버립니다. 사용자는 그게 틀린 줄 모릅니다.
+    # 덤으로 OpenAI 호출을 아낍니다. (검사는 20~40ms)
+    bad = textlines.check(normalized)
+    if bad:
+        log.info("사진 반려: %s", bad)
+        raise UnreadableError(bad)
+
     # 판정과 위치 찾기를 동시에 보냅니다. 순서대로 부르면 7초 + 3초가 되는데
     # 앱의 연출 예산이 10초이고 타임아웃이 45초입니다. 겹쳐서 보내면 7초입니다.
     #
