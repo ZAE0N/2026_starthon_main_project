@@ -104,7 +104,8 @@ export default function HomeScreen() {
               styles.primaryButton,
               pressed && styles.buttonPressed,
             ]}
-            onPress={() => router.push('/camera')}
+            /* 촬영 전에 조건을 먼저 묻습니다. 거기서 /camera 로 넘어갑니다 */
+            onPress={() => router.push('/ask')}
           >
             <Text style={styles.primaryButtonText}>계약서 촬영하기</Text>
           </Pressable>
