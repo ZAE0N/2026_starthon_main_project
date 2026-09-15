@@ -22,6 +22,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+
 import { router, useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator,
@@ -33,6 +34,7 @@ import {
   Text,
   View,
 } from "react-native";
+
 import { CircleAlert, CircleHelp } from "lucide-react-native";
 import { ApiError, inspectContract, type ApiErrorKind } from "../lib/api";
 import { getCurrentPhoto, setCurrent } from "../lib/session";
