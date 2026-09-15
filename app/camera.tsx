@@ -1,37 +1,46 @@
 /**
  * 사진 선택 화면. 담당: 나영웅
  *
- * ⚠ 이 화면은 카메라 화면이 아닙니다.
- *   폰 기본 카메라를 띄우기 때문에 앱 안에 미리보기나 가이드 네모를 만들 수 없습니다.
- *   화면 시안 2번(네이비 배경 + 네모 + 셔터 버튼)은 expo-camera 가 있어야 하는데
- *   그건 이번 범위가 아닙니다. 시안의 "안내 문구" 부분만 가져다 썼습니다.
+ * 화면이 두 겹입니다.
+ *   1) 안내 화면 — 초록 네모 삽화와 팁. 실제 촬영 화면이 아닙니다
+ *   2) 앱 안 카메라 — "사진 찍기" 를 누르면 전체 화면으로 열립니다.
+ *      expo-camera 의 미리보기 위에 초록 가이드 네모를 겹칩니다. 시안 2번입니다
  *
- *   대신 네모는 "이렇게 찍어주세요" 를 보여주는 그림으로 넣었습니다.
- *   촬영 미리보기가 아니라 정지된 삽화라서, 사용자가 실제 화면으로 착각하지 않게
- *   회색 문서 모양 안에 글자 자리만 표시해 두었습니다.
+ * 가이드 네모는 상태에 따라 색이 바뀝니다. 맞으면 초록, 아직이면 회색입니다.
+ * 무엇을 보고 판단하는지는 폰과 웹이 다릅니다 — lib/frameFit.ts 의 주석을 보세요.
+ *   웹: 미리보기를 실제로 읽어서 계약서가 네모 안에 들어왔는지
+ *   폰: 폰이 좌우로 기울었는지 (Expo Go 에서는 미리보기 프레임을 못 받습니다)
+ *
+ * 앱 안 카메라가 안 되면(권한 거부·기기 문제) 폰 기본 카메라로 되돌아갑니다.
+ * 촬영은 모든 흐름의 입구라서, 막히면 앱 전체가 멈춥니다. 그래서 되돌아갈 길을
+ * 남겨뒀습니다. lib/photo.ts 의 takePhoto() 가 그 경로입니다.
  *
  * 갤러리 버튼은 빼지 마세요. 이미 계약서를 쓰고 사진만 남은 사용자가 주 타깃이고,
  * 매장에서 셔터음 때문에 못 찍는 경우도 있습니다.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { Camera as CameraIcon, X } from "lucide-react-native";
 import {
   ActivityIndicator,
   Linking,
+  Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { pickPhoto, takePhoto } from "../lib/photo";
+import { photoFromShot, pickPhoto, takePhoto } from "../lib/photo";
+import { useFrameFit } from "../lib/frameFit";
 import { clearCurrent, setCurrentPhoto } from "../lib/session";
 import { copy } from "../constants/copy";
 import {
   colors,
   font,
+  guideColor,
   minTouch,
   radius,
   screenPadding,
@@ -43,7 +52,7 @@ type Source = "camera" | "library";
 
 /** 시안 2번의 "글자가 잘리지 않게 전체가 보이도록" 을 실제로 지킬 수 있게 풀어 썼습니다. */
 const TIPS = [
-  "네 귀퉁이가 모두 보이게 맞춰주세요",
+  "초록 네모처럼 네 귀퉁이가 모두 보이게 맞춰주세요",
   "밝은 곳에서, 그림자가 지지 않게 찍어주세요",
   "뒷장이 있으면 따로 한 번 더 확인해 주세요",
 ];
@@ -53,6 +62,72 @@ export default function Camera() {
   const [busy, setBusy] = useState<Source | null>(null);
   /** 권한이 거부된 경로. 안내를 띄울 때만 값이 들어갑니다. */
   const [denied, setDenied] = useState<Source | null>(null);
+
+  /** 앱 안 카메라가 열려 있는지 */
+  const [shooting, setShooting] = useState(false);
+  const camRef = useRef<CameraView>(null);
+  const [camPerm, requestCamPerm] = useCameraPermissions();
+
+  /*
+   * 실시간 안내. 웹에서는 아래 두 ref 로 <video> 와 가이드 네모의 자리를 찾아
+   * 미리보기를 읽습니다. 폰에서는 ref 를 쓰지 않고 기울기만 봅니다.
+   */
+  const camHostRef = useRef<View>(null);
+  const frameRef = useRef<View>(null);
+  const fit = useFrameFit(shooting, camHostRef, frameRef);
+  const guide = fit.state === "ok" ? guideColor.ok : guideColor.wait;
+
+  /**
+   * "사진 찍기" — 앱 안 카메라를 엽니다.
+   *
+   * 권한이 없으면 한 번 요청하고, 거부되면 폰 기본 카메라로 넘깁니다.
+   * 기본 카메라도 거부되면 그때 안내를 띄웁니다. 초록 네모를 못 보여주는 것보다
+   * 사진을 아예 못 찍는 게 훨씬 나쁩니다.
+   */
+  async function openCamera() {
+    if (busy) return;
+
+    const ok = camPerm?.granted ? true : (await requestCamPerm())?.granted;
+    if (!ok) {
+      await choose("camera"); // 폰 기본 카메라로 되돌아갑니다
+      return;
+    }
+
+    setDenied(null);
+    setShooting(true);
+  }
+
+  /** 셔터. 찍은 사진을 기존 파이프라인(축소·base64)에 태웁니다. */
+  async function shoot() {
+    if (busy) return;
+    setBusy("camera");
+
+    try {
+      const shot = await camRef.current?.takePictureAsync({
+        quality: 1,
+        // base64 는 여기서 받지 않습니다. 축소한 다음에 만들어야 용량이 줄어듭니다.
+        base64: false,
+        exif: false,
+      });
+
+      const photo = shot ? await photoFromShot(shot) : null;
+      if (!photo) {
+        setBusy(null);
+        return;
+      }
+
+      setShooting(false);
+      clearCurrent();
+      setCurrentPhoto(photo);
+      router.replace("/analyzing");
+      // busy 는 일부러 되돌리지 않습니다. 아래 choose() 와 같은 이유입니다.
+    } catch {
+      // 촬영 실패. 카메라를 닫고 폰 기본 카메라로 넘깁니다.
+      setShooting(false);
+      setBusy(null);
+      await choose("camera");
+    }
+  }
 
   async function choose(source: Source) {
     if (busy) return; // 연타 방지. 사진이 올 때까지 두 번째 터치를 무시합니다.
@@ -84,15 +159,29 @@ export default function Camera() {
   const permission = copy.errors.permission;
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.screen}
-      keyboardShouldPersistTaps="handled"
-    >
+    <>
+    {/*
+      스크롤하지 않는 고정 화면입니다.
+
+      전에는 ScrollView 였는데, 촬영 직전에 훑어볼 안내가 화면을 넘어가면
+      아래 촬영 버튼이 보이지 않아서 스크롤을 해야 했습니다. 안내 몇 줄 때문에
+      버튼을 찾게 만들 이유가 없습니다.
+
+      대신 위쪽 부제를 뺐고, 예시 그림이 화면 높이에 맞춰 줄어듭니다
+      (styles.paper 의 maxHeight). 작은 폰에서도 버튼이 밀려나지 않습니다.
+    */}
+    <View style={styles.screen}>
       <View style={styles.guide}>
         <Text style={styles.title}>계약서 전체가 보이게 찍어주세요</Text>
-        <Text style={styles.sub}>
-          아래 그림처럼 계약서 한 장이 화면에 다 들어오면 돼요.
-        </Text>
+
+        {/*
+          조건 질문(사업장 규모·나이)은 이 화면에 있었는데 app/ask.tsx 로 뺐습니다.
+          안내와 질문이 한 화면에 섞여서 어수선했습니다. 메인에서 촬영을 누르면
+          질문 두 화면을 거쳐 여기로 옵니다.
+
+          결과·기록함의 "다시 찍기" 는 질문을 거치지 않고 여기로 바로 옵니다.
+          답은 세션에 남아 있어서 다시 물을 이유가 없습니다.
+        */}
 
         {/* 촬영 예시 그림 — 실제 카메라 화면이 아닙니다 */}
         <View style={styles.artWrap} accessible={false}>
@@ -150,7 +239,7 @@ export default function Camera() {
             busy !== null && styles.dim,
           ]}
           disabled={busy !== null}
-          onPress={() => choose("camera")}
+          onPress={openCamera}
           accessibilityRole="button"
           accessibilityLabel="사진 찍기"
           accessibilityState={{ disabled: busy !== null, busy: busy === "camera" }}
@@ -188,7 +277,89 @@ export default function Camera() {
           이미 찍어둔 계약서 사진이 있다면 갤러리에서 골라도 돼요.
         </Text>
       </View>
-    </ScrollView>
+    </View>
+
+    {/*
+      앱 안 카메라. expo-camera 미리보기 위에 초록 가이드 네모를 겹칩니다.
+      시안 2번입니다.
+
+      네모는 A4 비율(0.707)로 두었습니다. 계약서가 대개 A4 라서, 이 안에
+      맞추면 잘리지 않습니다. 네모 밖은 어둡게 덮어 어디에 맞춰야 하는지
+      눈에 바로 들어오게 했습니다.
+    */}
+    <Modal
+      visible={shooting}
+      animationType="slide"
+      onRequestClose={() => setShooting(false)}
+      statusBarTranslucent
+    >
+      <View style={styles.camScreen} ref={camHostRef}>
+        <CameraView ref={camRef} style={styles.camView} facing="back" />
+
+        {/* 미리보기 위에 겹치는 것들. 터치는 통과시킵니다 */}
+        <View style={styles.camOverlay} pointerEvents="none">
+          {/*
+            문구는 상태에 따라 바뀝니다. 색만으로 알려주면 색약인 사용자가
+            초록과 회색을 구분하지 못합니다. 판정 배지와 같은 원칙입니다.
+          */}
+          <Text
+            style={[styles.camHint, fit.state === "ok" && { color: guide }]}
+            accessibilityLiveRegion="polite"
+          >
+            {fit.hint}
+          </Text>
+
+          <View ref={frameRef} style={[styles.frame, { borderColor: guide }]}>
+            <View style={[styles.corner, styles.cornerTL, { borderColor: guide }]} />
+            <View style={[styles.corner, styles.cornerTR, { borderColor: guide }]} />
+            <View style={[styles.corner, styles.cornerBL, { borderColor: guide }]} />
+            <View style={[styles.corner, styles.cornerBR, { borderColor: guide }]} />
+          </View>
+
+          <Text style={styles.camHintSub}>
+            밝은 곳에서, 그림자가 지지 않게
+          </Text>
+        </View>
+
+        {/* 조작부 */}
+        <View style={styles.camFoot}>
+          <Pressable
+            style={styles.camClose}
+            onPress={() => setShooting(false)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="닫기"
+          >
+            <X size={24} color={colors.white} />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.shutter,
+              // 셔터 테두리도 같이 바뀝니다. 손가락이 여기 있으니 제일 잘 보입니다
+              { borderColor: guide },
+              pressed && styles.shutterPressed,
+              busy !== null && styles.dim,
+            ]}
+            disabled={busy !== null}
+            onPress={shoot}
+            accessibilityRole="button"
+            accessibilityLabel="사진 찍기"
+            accessibilityState={{ disabled: busy !== null, busy: busy !== null }}
+          >
+            {busy !== null ? (
+              <ActivityIndicator color={colors.navy} />
+            ) : (
+              <CameraIcon size={26} color={colors.navy} />
+            )}
+          </Pressable>
+
+          {/* 셔터를 가운데 두려고 반대쪽에 같은 크기를 비워둡니다 */}
+          <View style={styles.camClose} />
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -216,7 +387,7 @@ async function hasPermission(source: Source): Promise<boolean> {
 
 const styles = StyleSheet.create({
   screen: {
-    flexGrow: 1,
+    flex: 1,
     padding: screenPadding,
     justifyContent: "space-between",
     backgroundColor: colors.bg,
@@ -232,14 +403,26 @@ const styles = StyleSheet.create({
   },
 
   /* 촬영 예시 그림 */
-  artWrap: { alignItems: "center", marginTop: space.lg },
+  /*
+   * 예시 그림. flex 로 남는 공간을 받고, 그 안에서 그림이 줄어듭니다.
+   * 작은 폰에서 그림이 버튼을 밀어내지 않게 하려는 것입니다.
+   */
+  artWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: space.md,
+  },
   paper: {
     width: "68%",
+    maxHeight: "100%",
     aspectRatio: 0.74,
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
+    // 초록 점선. 귀퉁이 표시만으로는 "여기에 맞춰라" 가 덜 읽힙니다
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: colors.green,
     padding: space.md,
     justifyContent: "center",
     gap: space.sm,
@@ -255,37 +438,123 @@ const styles = StyleSheet.create({
   skeletonMid: { width: "78%" },
   skeletonShort: { width: "45%" },
 
+  /* ── 앱 안 카메라 ────────────────────────────────────────── */
+  camScreen: { flex: 1, backgroundColor: "#000" },
+  camView: { flex: 1 },
+
+  /*
+   * 미리보기 위에 겹치는 층. 터치는 통과시켜야 합니다.
+   * pointerEvents="none" 을 안 주면 셔터가 안 눌립니다.
+   */
+  camOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.lg,
+    paddingHorizontal: space.lg,
+  },
+  camHint: {
+    color: colors.white,
+    fontSize: font.body,
+    fontWeight: weight.semibold,
+    textAlign: "center",
+  },
+  camHintSub: {
+    color: colors.grayLight,
+    fontSize: font.small,
+    textAlign: "center",
+  },
+
+  /*
+   * 가이드 네모. A4 비율(0.707)로 두었습니다. 계약서가 대개 A4 라서
+   * 이 안에 맞추면 잘리지 않습니다.
+   */
+  frame: {
+    width: "100%",
+    aspectRatio: 0.707,
+    maxHeight: "70%",
+    borderWidth: 2,
+    // 색은 상태가 정합니다 (guideColor). 여기서는 두께만 정합니다
+    borderRadius: radius.sm,
+  },
+
+  camFoot: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: screenPadding,
+    paddingTop: space.md,
+    paddingBottom: space.xl,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  camClose: {
+    width: minTouch,
+    height: minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shutter: {
+    width: 68,
+    height: 68,
+    borderRadius: radius.full,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 4,
+    // 색은 상태가 정합니다 (guideColor)
+  },
+  shutterPressed: { backgroundColor: colors.surface },
+
+  /*
+   * 가이드 프레임의 네 귀퉁이.
+   *
+   * 초록으로 바꾸고 크기를 키웠습니다. "가이드 라인이 없어서 어떻게 찍어야
+   * 할지 모르겠다" 는 지적이 있었는데, 전에는 민트색 22px 이라 눈에 잘
+   * 들어오지 않았습니다.
+   *
+   * 이건 촬영 전 안내 그림입니다. 실제 카메라 화면 위에 겹치는 것이 아닙니다.
+   * 그건 expo-camera 가 필요하고, 이 프로젝트는 폰 기본 카메라를 씁니다.
+   * (AGENTS.md, SETUP.md)
+   */
   corner: {
     position: "absolute",
-    width: 22,
-    height: 22,
-    borderColor: colors.mint,
-    borderWidth: 3,
+    width: 30,
+    height: 30,
+    borderColor: colors.green,
+    borderWidth: 4,
   },
   cornerTL: {
-    top: -3,
-    left: -3,
+    top: -4,
+    left: -4,
     borderRightWidth: 0,
     borderBottomWidth: 0,
     borderTopLeftRadius: radius.sm,
   },
   cornerTR: {
-    top: -3,
-    right: -3,
+    top: -4,
+    right: -4,
     borderLeftWidth: 0,
     borderBottomWidth: 0,
     borderTopRightRadius: radius.sm,
   },
   cornerBL: {
-    bottom: -3,
-    left: -3,
+    bottom: -4,
+    left: -4,
     borderRightWidth: 0,
     borderTopWidth: 0,
     borderBottomLeftRadius: radius.sm,
   },
   cornerBR: {
-    bottom: -3,
-    right: -3,
+    bottom: -4,
+    right: -4,
     borderLeftWidth: 0,
     borderTopWidth: 0,
     borderBottomRightRadius: radius.sm,

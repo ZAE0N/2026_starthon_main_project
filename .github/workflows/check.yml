@@ -1,0 +1,94 @@
+# PR 을 머지하기 전에 자동으로 돌아가는 검사.
+#
+# 왜 있는가: PR #27 이 머지된 뒤 develop 이 빌드되지 않았습니다. 충돌을 풀다가
+# import 와 변수 선언이 사라졌는데, 코드를 읽어도 잘 안 보이고 앱을 켜야 터졌습니다.
+# 타입 체크 한 번이면 잡히는 것이었습니다.
+#
+# 여기서 돌리는 것은 두 가지뿐입니다. 느리면 아무도 안 보게 되므로 일부러 좁혔습니다.
+#   1. 앱 타입 체크 (tsc)
+#   2. laws.json 이 깨지지 않았는지
+#
+# 테스트는 없습니다. 이 저장소에는 테스트 코드가 없습니다.
+# (한때 pytest 를 돌리는 워크플로우가 있었지만 이 프로젝트와 맞지 않아 지웠습니다)
+
+name: check
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: 앱 타입 체크
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 팀원들이 쓰는 것과 같은 계열로 맞춥니다. 로컬은 v24.19.0 입니다.
+          node-version: '24'
+          cache: npm
+
+      # npm install 이 아니라 npm ci 입니다. package-lock.json 그대로 설치해서
+      # "내 컴퓨터에서는 됐는데" 를 막습니다. lock 이 어긋나 있으면 여기서 실패합니다.
+      - run: npm ci
+
+      - name: tsc --noEmit
+        run: npx tsc -p . --noEmit
+
+  laws:
+    name: laws.json 형식
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # laws.json 은 손으로 고치는 파일입니다(담당: 김종현).
+      # 콤마 하나가 빠지면 서버가 기동할 때 죽습니다. 그건 배포하고 나서 알게 됩니다.
+      # 여기서는 파이썬 기본 기능만 씁니다. 의존성을 깔지 않아 몇 초에 끝납니다.
+      - name: JSON 파싱과 필수 항목 확인
+        run: |
+          python3 - <<'PY'
+          import json, sys
+
+          with open("server/laws.json", encoding="utf-8") as f:
+              data = json.load(f)          # 문법이 깨졌으면 여기서 실패합니다
+
+          problems = []
+
+          checks = data.get("checks")
+          if not isinstance(checks, list):
+              problems.append("checks 가 배열이 아닙니다")
+          else:
+              if len(checks) != 8:
+                  problems.append(f"checks 가 8개여야 하는데 {len(checks)}개입니다")
+              for i, c in enumerate(checks):
+                  for key in ("id", "label", "law", "lawText", "rule"):
+                      if not str(c.get(key, "")).strip():
+                          problems.append(f"checks[{i}] 의 {key} 가 비어 있습니다")
+
+          for key in ("version", "checkedAt", "minimumWage", "assumptions"):
+              if key not in data:
+                  problems.append(f"{key} 가 없습니다")
+
+          mw = data.get("minimumWage") or {}
+          if not isinstance(mw.get("hourly"), int):
+              problems.append("minimumWage.hourly 가 정수가 아닙니다")
+
+          if problems:
+              print("laws.json 에 문제가 있습니다:")
+              for p in problems:
+                  print("  -", p)
+              sys.exit(1)
+
+          print(f"laws.json 정상 — checks {len(checks)}개, "
+                f"{mw.get('year')}년 시급 {mw.get('hourly')}원")
+          PY

@@ -204,11 +204,13 @@ await saveResult(result, photo.uri);   // 사진 복사까지 한 번에
 - "다시 찍기" 버튼 필수. 사진이 흐려 판정이 이상할 때 돌아갈 길이 있어야 합니다
 
 **말할 문장 화면**
-- 복사하면 반드시 표시를 냅니다 (토스트 등). 없으면 사장님 앞에서 여러 번 누릅니다
-- 복사 후 `copy.followUp` 질문을 한 번 띄웁니다 → `setFollowUp()`
-  이게 이 프로젝트의 핵심 지표입니다
-- 답을 받으면 `setFollowUp()` 과 함께 `updateResult(result.id, { followUp })` 도
-  불러서 저장까지 합니다 (session 만 바꾸면 앱을 껐을 때 사라집니다)
+- 톤 전환(정중한 말투 / 명확한 말투)으로 `clause.scripts.soft` `firm` 을 바꿔 보여줍니다
+- 판정이 `문제없음` 인 항목은 `scripts` 가 빈 문자열입니다. 들어올 일이 없게
+  조항 상세에서 버튼을 숨기지만, 빈 값이 와도 화면이 깨지지 않게 둡니다
+
+> 2026-09-14: **복사 버튼과 `followUp` 질문("사장님께 말해보셨나요?")을 빼기로 했습니다.**
+> 전정현이 정한 것이고 되살리지 않습니다. `copy.followUp`, `setFollowUp()`,
+> `FollowUp` 타입도 같이 지웠습니다. 옛 커밋이나 문서에서 보셨더라도 다시 넣지 마세요.
 
 **판정 색**
 - 직접 쓰지 말고 `verdictStyle[clause.verdict]` 사용
@@ -221,7 +223,11 @@ await saveResult(result, photo.uri);   // 사진 복사까지 한 번에
 
 ## 자주 틀리는 것
 
-- **`expo-camera` 를 쓰지 않습니다.** `lib/photo.ts` 만 씁니다.
+- **사진은 `lib/photo.ts` 를 통해서만 가져옵니다.** 화면에서 직접 base64 를
+  만들지 마세요. 축소를 안 하면 실제 계약서 사진에서 서버가 거부합니다.
+  2026-09-15 부터 `expo-camera` 를 씁니다(앱 안 촬영 + 초록 가이드 네모).
+  촬영 결과도 `photoFromShot()` 으로 같은 축소 파이프라인을 태웁니다.
+  앱 안 카메라가 안 되면 `takePhoto()`(폰 기본 카메라)로 되돌아갑니다.
 - **`mediaTypes` 값**: 최신 버전은 `["images"]`, 예전 버전은
   `ImagePicker.MediaTypeOptions.Images` 입니다. 에러가 나면 바꿔보세요.
 - **텍스트는 반드시 `<Text>` 로 감쌉니다.** 맨 문자열을 두면 앱이 죽습니다.

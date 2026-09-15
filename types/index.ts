@@ -40,6 +40,24 @@ export const CHECK_LABELS: Record<CheckId, string> = {
   required: "명시 항목",
 };
 
+/**
+ * 사진 안에서 이 조항이 적혀 있는 **글자 줄**의 자리.
+ * 사진 전체를 1.0 으로 본 비율이고, 왼쪽 위가 (0, 0) 입니다.
+ *
+ * 형광펜으로 글자 위만 긋는 데 씁니다 (components/MarkedShot.tsx).
+ * 왜 네 변을 다 쓰는지는 server/schema.py 의 Mark 주석에 있습니다.
+ */
+export type Mark = {
+  /** 위쪽 (0.0 ~ 1.0) */
+  top: number;
+  /** 아래쪽 (0.0 ~ 1.0, top 보다 큽니다) */
+  bottom: number;
+  /** 왼쪽 (0.0 ~ 1.0) */
+  left: number;
+  /** 오른쪽 (0.0 ~ 1.0, left 보다 큽니다) */
+  right: number;
+};
+
 /** 조항 하나의 판정 결과 */
 export type Clause = {
   id: CheckId;
@@ -49,8 +67,19 @@ export type Clause = {
   original: string;
   /** 쉬운 말 설명 */
   plain: string;
-  /** 근거 조문 (예: "최저임금법 제6조") */
+  /** 근거 조문 번호 (예: "최저임금법 제6조") */
   law: string;
+  /**
+   * 근거 조문의 전문. 번호만 보여주면 사용자가 확인할 방법이 없습니다.
+   * 서버가 laws.json 에서 그대로 보냅니다. AI 가 만든 문장이 아닙니다.
+   * 옛 서버는 이 값을 안 보내므로 빈 문자열일 수 있습니다.
+   */
+  lawText: string;
+  /**
+   * 사진 속 자리. 계약서에 그 내용이 없으면 null 입니다.
+   * 옛 서버는 이 값을 안 보내므로 undefined 일 수 있습니다.
+   */
+  mark?: Mark | null;
   /** 사장님에게 말할 문장. 문제없음이면 빈 문자열 */
   scripts: {
     soft: string;
@@ -59,10 +88,36 @@ export type Clause = {
 };
 
 /**
- * 사용자가 말 꺼내기를 실제로 했는지.
- * 이 프로젝트의 핵심 지표입니다. 말할 문장 화면에서 한 번 묻습니다.
+ * 사진을 보내기 전에 사용자가 답한 조건. (app/camera.tsx)
+ *
+ * 답에 따라 적용되는 법이 달라집니다. 예를 들어 야간 가산수당은
+ * 상시근로자 5인 이상 사업장에만 적용됩니다.
+ * 모르거나 안 골랐으면 null 이고, 그때는 5인 이상·만 18세 이상 기준으로 봅니다.
+ * 미성년 기준이 더 엄격해서, 성인인데 그 기준으로 보면 없는 위법을 만들어냅니다.
+ *
+ * 설계: FEATURE_hidden-conditions-design.md
  */
-export type FollowUp = "요청함" | "못함" | "수정됨";
+export type Workplace = {
+  /** 상시근로자 수 */
+  employeeCount: "under5" | "over5" | null;
+  /** 만 18세 미만인지 */
+  isMinor: boolean | null;
+};
+
+/**
+ * "몰랐을 수도 있는 것" 한 덩어리.
+ *
+ * 판정이 아니라 안내입니다. 결과 화면에서 배지를 붙이지 마세요.
+ * 위법소지처럼 보이면 사용자가 그걸 위반으로 믿습니다.
+ */
+export type Note = {
+  /** 어떤 조건 때문에 나온 안내인지 */
+  id: string;
+  /** 본문. 서버가 3줄 이내로 보냅니다 */
+  text: string;
+  /** 근거 조문. 없으면 빈 문자열 */
+  law: string;
+};
 
 /** 계약서 한 장의 검진 결과 */
 export type InspectResult = {
@@ -81,8 +136,10 @@ export type InspectResult = {
   basedOn: string;
   /** 기록함에 표시할 이름. 사용자가 나중에 붙임 */
   title?: string;
-  /** 말 꺼내기를 실제로 했는지 */
-  followUp?: FollowUp;
+  /** 사진을 보내기 전에 답한 조건. 옛 기록에는 없습니다 */
+  workplace?: Workplace;
+  /** "몰랐을 수도 있는 것". 해당되는 조건이 없으면 빈 배열 */
+  notes?: Note[];
 };
 
 /**
@@ -110,6 +167,18 @@ export function getIssues(result: InspectResult): Clause[] {
   return result.clauses
     .filter((c) => c.verdict !== "문제없음")
     .sort((a, b) => rank[a.verdict] - rank[b.verdict]);
+}
+
+/**
+ * 사진에 표시할 조항. 문제가 있고 자리를 아는 것만 골라 위에서 아래 순으로 줍니다.
+ *
+ * 화면 순서(위법소지 먼저)가 아니라 사진에 적힌 순서로 정렬합니다.
+ * 띠를 위에서부터 읽어야 계약서를 눈으로 따라갈 수 있습니다.
+ */
+export function getMarked(result: InspectResult): Clause[] {
+  return result.clauses
+    .filter((c) => c.verdict !== "문제없음" && c.mark != null)
+    .sort((a, b) => (a.mark as Mark).top - (b.mark as Mark).top);
 }
 
 /** 문제없는 조항만 */
