@@ -239,6 +239,23 @@ export default function Result() {
                 · {a}
               </Text>
             ))}
+
+            {/*
+              나이 답은 한 번만 묻고 폰에 저장합니다(lib/session.ts 의 AGE_KEY).
+              그래서 바꿀 자리가 필요한데, 여기가 그 자리입니다 — 전제가 틀렸다는
+              걸 알아차리는 순간이 바로 이 문구를 읽을 때입니다.
+
+              누르면 나이 질문만 다시 뜨고, 답하면 이 화면으로 돌아옵니다.
+              사업장 규모는 저장하지 않아서 다음 촬영 때 다시 묻습니다.
+            */}
+            <Pressable
+              style={styles.assumeEdit}
+              onPress={() => router.push("/ask?only=age")}
+              accessibilityRole="button"
+              accessibilityLabel="나이 기준 바꾸기"
+            >
+              <Text style={styles.assumeEditText}>나이 기준 바꾸기</Text>
+            </Pressable>
           </View>
         )}
 
@@ -325,6 +342,19 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   devNoticeText: { fontSize: font.small, color: colors.amber, lineHeight: 19 },
+
+  assumeEdit: {
+    alignSelf: "flex-start",
+    marginTop: space.sm,
+    minHeight: minTouch,
+    justifyContent: "center",
+  },
+  assumeEditText: {
+    fontSize: font.small,
+    color: colors.mintText,
+    fontWeight: weight.semibold,
+    textDecorationLine: "underline",
+  },
 
   /* 썸네일 위의 표시 개수 */
   shotBadge: {

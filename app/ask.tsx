@@ -20,6 +20,15 @@
  *   않습니다(react-native-screens 에 웹 구현이 없습니다). 시연을 웹에서 하므로
  *   전환을 직접 그립니다. 사용자에게는 화면이 두 개로 보입니다.
  *
+ * 나이는 한 번만 묻습니다:
+ *   만 18세 미만인지는 폰에 저장되고(lib/session.ts 의 AGE_KEY), 다음부터는
+ *   그 질문 화면이 아예 뜨지 않습니다. 나이는 바뀌지 않으니 매번 묻는 건
+ *   번거롭기만 합니다.
+ *
+ *   바꾸려면 결과 화면의 판정 전제 옆 "바꾸기" 를 누릅니다. 그러면
+ *   `/ask?only=age` 로 들어와 나이 질문만 뜨고, 답하면 왔던 화면으로 돌아갑니다.
+ *   사업장 규모는 저장하지 않습니다 — 다른 알바를 시작하면 달라지는 값입니다.
+ *
  * 답을 강제하지 않습니다:
  *   아래 "건너뛰기" 로 넘길 수 있습니다. 안 고르면 5인 이상·만 18세 이상
  *   기준으로 보고, 어느 기준으로 봤는지는 결과 화면의 전제에 항상 적힙니다.
@@ -32,7 +41,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   AccessibilityInfo,
   Animated,
@@ -44,7 +53,7 @@ import {
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import AskArt from "../components/AskArt";
-import { setWorkplace, useWorkplace } from "../lib/session";
+import { setWorkplace, useSavedAge, useWorkplace } from "../lib/session";
 import {
   colors,
   font,
@@ -64,8 +73,25 @@ const SLIDE_PX = 24;
 type Step = 0 | 1;
 
 export default function Ask() {
+  // 저장된 나이를 불러옵니다. 값이 오면 아래 skipAge 가 true 가 됩니다.
+  useSavedAge();
+
   const answers = useWorkplace();
-  const [step, setStep] = useState<Step>(0);
+  const { only } = useLocalSearchParams<{ only?: string }>();
+
+  /** 나이만 다시 묻는 모드. 결과 화면의 "바꾸기" 로 들어옵니다 */
+  const ageOnly = only === "age";
+
+  const [step, setStep] = useState<Step>(ageOnly ? 1 : 0);
+
+  /**
+   * 나이 질문을 건너뛸지.
+   *
+   * 1단계(인원)에 있는 동안 isMinor 에 값이 있다면 그건 **저장소에서 온 것**
+   * 뿐입니다. 이 흐름에서 나이를 물은 적이 없으니까요. 그래서 그냥 읽으면 됩니다.
+   * 렌더 중에 ref 를 고치던 것을 이렇게 바꿨습니다.
+   */
+  const skipAge = answers.isMinor !== null;
 
   /** 0 → 1 로 움직이며 새 단계를 밀어 넣습니다 */
   const t = useRef(new Animated.Value(1)).current;
@@ -84,9 +110,14 @@ export default function Ask() {
   }, []);
 
   /** 다음 단계로. 마지막이면 촬영 안내로 넘깁니다 */
-  const go = (next: Step | "camera") => {
-    if (next === "camera") {
-      router.replace("/camera");
+  const go = (next: Step | "done") => {
+    if (next === "done") {
+      if (ageOnly) {
+        // 결과 화면에서 바꾸러 온 경우. 왔던 화면으로 돌려보냅니다.
+        router.back();
+      } else {
+        router.replace("/camera");
+      }
       return;
     }
 
@@ -106,7 +137,8 @@ export default function Ask() {
   };
 
   const back = () => {
-    if (step === 0) {
+    // 나이만 묻는 모드이거나 1단계면 왔던 화면으로 돌아갑니다
+    if (step === 0 || ageOnly) {
       router.back();
       return;
     }
@@ -138,15 +170,23 @@ export default function Ask() {
           <ChevronLeft size={26} color={colors.navy} />
         </Pressable>
 
-        {/* 몇 단계 중 어디인지. 토스처럼 얇은 막대 두 칸입니다 */}
-        <View style={styles.steps} accessibilityElementsHidden>
-          {[0, 1].map((i) => (
-            <View
-              key={i}
-              style={[styles.stepBar, i <= step && styles.stepBarOn]}
-            />
-          ))}
-        </View>
+        {/*
+          몇 단계 중 어디인지. 토스처럼 얇은 막대입니다.
+          나이만 묻는 모드는 한 단계뿐이라 막대를 그리지 않습니다.
+          나이를 이미 아는 경우도 1단계뿐이라 마찬가지입니다.
+        */}
+        {ageOnly || skipAge ? (
+          <View style={styles.steps} />
+        ) : (
+          <View style={styles.steps} accessibilityElementsHidden>
+            {[0, 1].map((i) => (
+              <View
+                key={i}
+                style={[styles.stepBar, i <= step && styles.stepBarOn]}
+              />
+            ))}
+          </View>
+        )}
       </View>
 
       <Animated.View style={[styles.body, slide]} key={step}>
@@ -164,9 +204,10 @@ export default function Ask() {
               setWorkplace({
                 employeeCount: i === 0 ? "under5" : i === 1 ? "over5" : null,
               });
-              go(1);
+              // 나이를 이미 알면 그 질문은 건너뜁니다
+              go(skipAge ? "done" : 1);
             }}
-            onSkip={() => go(1)}
+            onSkip={() => go(skipAge ? "done" : 1)}
           />
         ) : (
           <Question
@@ -179,9 +220,9 @@ export default function Ask() {
             ]}
             onPick={(i) => {
               setWorkplace({ isMinor: i === 0 });
-              go("camera");
+              go("done");
             }}
-            onSkip={() => go("camera")}
+            onSkip={() => go("done")}
           />
         )}
       </Animated.View>

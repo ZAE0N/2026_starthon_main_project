@@ -32,7 +32,6 @@ import {
   radius,
   screenPadding,
   space,
-  verdictStyle,
   weight,
 } from "../constants/theme";
 
@@ -143,12 +142,6 @@ export default function History() {
           {items.map((item) => {
             const issues = getIssues(item).length;
             const illegal = countIllegal(item);
-            const s =
-              illegal > 0
-                ? verdictStyle.위법소지
-                : issues > 0
-                  ? verdictStyle.확인필요
-                  : verdictStyle.문제없음;
 
             return (
               /*
@@ -169,24 +162,48 @@ export default function History() {
                     issues > 0 ? `확인할 곳 ${issues}곳` : "이상 없음"
                   }`}
                 >
-                  {/* 사진이 있으면 보여줍니다. 복사가 실패했으면 imagePath 가 빈 문자열입니다. */}
-                  {item.imagePath ? (
-                    <Image
-                      source={{ uri: item.imagePath }}
-                      style={styles.thumb}
-                      resizeMode="cover"
-                      accessible={false}
-                    />
-                  ) : (
-                    <View style={[styles.thumb, styles.thumbEmpty]}>
-                      {/* 사진 복사가 실패했을 때. 전에는 "문서" 라는 글자를 썼습니다 */}
-                      <FileText
-                        size={20}
-                        color={colors.grayLight}
-                        strokeWidth={1.5}
+                  {/*
+                    사진과 표시 개수. 결과 화면의 좌상단 썸네일과 같은 모양입니다.
+                    오른쪽에 "n곳" 배지를 따로 두던 것을 여기로 합쳤습니다 —
+                    같은 정보를 두 곳에 두면 눈이 두 번 갑니다.
+
+                    배지 색이 심각도를 나타냅니다. 위법 소지가 있으면 빨강,
+                    확인만 필요하면 주황입니다. 이상 없으면 배지가 없습니다.
+                  */}
+                  <View>
+                    {item.imagePath ? (
+                      <Image
+                        source={{ uri: item.imagePath }}
+                        style={styles.thumb}
+                        resizeMode="cover"
+                        accessible={false}
                       />
-                    </View>
-                  )}
+                    ) : (
+                      <View style={[styles.thumb, styles.thumbEmpty]}>
+                        {/* 사진 복사가 실패했을 때. 전에는 "문서" 라는 글자를 썼습니다 */}
+                        <FileText
+                          size={20}
+                          color={colors.grayLight}
+                          strokeWidth={1.5}
+                        />
+                      </View>
+                    )}
+
+                    {issues > 0 ? (
+                      <View
+                        style={[
+                          styles.thumbBadge,
+                          {
+                            backgroundColor:
+                              illegal > 0 ? colors.red : colors.amber,
+                          },
+                        ]}
+                        pointerEvents="none"
+                      >
+                        <Text style={styles.thumbBadgeText}>{issues}</Text>
+                      </View>
+                    ) : null}
+                  </View>
 
                   <View style={styles.cardBody}>
                     <Text style={styles.cardLabel} numberOfLines={1}>
@@ -197,11 +214,6 @@ export default function History() {
                     </Text>
                   </View>
 
-                  <View style={[styles.pill, { backgroundColor: s.bg }]}>
-                    <Text style={[styles.pillText, { color: s.color }]}>
-                      {issues > 0 ? `${issues}곳` : "이상 없음"}
-                    </Text>
-                  </View>
                 </Pressable>
 
                 <Pressable
@@ -394,6 +406,26 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
 
+  /* 썸네일 위의 표시 개수. app/result.tsx 의 shotBadge 와 같은 모양입니다 */
+  thumbBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: radius.full,
+    borderWidth: 2,
+    borderColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbBadgeText: {
+    color: colors.white,
+    fontSize: font.tiny,
+    fontWeight: weight.bold,
+  },
+
   cardBody: { flex: 1, minWidth: 0 },
   cardLabel: {
     fontSize: font.body,
@@ -402,8 +434,6 @@ const styles = StyleSheet.create({
   },
   cardDate: { marginTop: 4, fontSize: font.small, color: colors.gray },
 
-  pill: { borderRadius: radius.full, paddingHorizontal: 9, paddingVertical: 4 },
-  pillText: { fontSize: font.tiny, fontWeight: weight.semibold },
 
   more: { paddingHorizontal: space.xs, paddingVertical: space.xs },
 
