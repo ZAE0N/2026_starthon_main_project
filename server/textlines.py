@@ -223,9 +223,43 @@ def _paper_box(img: Image.Image) -> tuple[int, int, int, int] | None:
     return xs[0], ys[0], xs[1] + 1, ys[1] + 1
 
 
-def _region(
-    image_base64: str,
-) -> tuple[Image.Image | None, float, float] | None:
+class Prepared:
+    """
+    사진을 줄이고 종이를 찾아 그 안의 글자 마스크를 만든 결과.
+
+    check() 와 snap() 이 **같은 전처리를 공유해야 합니다.** 한쪽만 종이를
+    찾으면 통과한 사진에 엉뚱한 자리가 표시됩니다. 실제로 그랬습니다.
+    """
+
+    __slots__ = ("mono", "box", "size", "ink")
+
+    def __init__(
+        self,
+        mono: Image.Image | None,
+        box: tuple[int, int, int, int] | None,
+        size: tuple[int, int],
+        ink: float,
+    ) -> None:
+        #: 종이 안쪽만 자른 글자 마스크. 사진이 통째로 어두우면 None
+        self.mono = mono
+        #: 종이의 자리 (줄인 사진의 좌표계). mono 가 None 이면 None
+        self.box = box
+        #: 줄인 사진의 (너비, 높이)
+        self.size = size
+        #: 종이 안의 잉크 비율 (mono 가 None 이면 사진 전체 평균 밝기)
+        self.ink = ink
+
+    @property
+    def paper_share(self) -> float:
+        """종이가 사진에서 차지하는 비율."""
+        if self.box is None:
+            return 0.0
+        x0, y0, x1, y1 = self.box
+        w, h = self.size
+        return ((x1 - x0) / w) * ((y1 - y0) / h)
+
+
+def _prepare(image_base64: str) -> Prepared | None:
     """
     **종이 안쪽만** 잘라낸 글자 마스크와, 종이 안의 잉크 비율, 종이가 사진에서
     차지하는 비율. 판단할 수 없으면 None.
@@ -262,7 +296,7 @@ def _region(
         # 종이를 찾기 전에 본다. 아래 주석(DARK_MEAN)에 이유가 있다.
         mean = list(img.resize((1, 1), Image.BOX).getdata())[0] / 255
         if mean < DARK_MEAN:
-            return None, mean, 0.0
+            return Prepared(None, None, (fw, fh), mean)
 
         box = _paper_box(img)
         if box is None:
@@ -272,7 +306,6 @@ def _region(
         if x1 - x0 < 8 or y1 - y0 < 8:
             return None
 
-        share = ((x1 - x0) / fw) * ((y1 - y0) / fh)
         paper = img.crop(box)
 
         # 종이 안에서 다시 문턱을 정합니다. 이번에는 글자와 종이를 가릅니다.
@@ -280,7 +313,7 @@ def _region(
         mono = paper.point(lambda v: 255 if v <= thr else 0, mode="L")
 
         ink = list(mono.resize((1, 1), Image.BOX).getdata())[0] / 255
-        return mono, ink, share
+        return Prepared(mono, box, (fw, fh), ink)
     except Exception:  # noqa: BLE001
         return None
 
@@ -321,7 +354,7 @@ def check(image_base64: str) -> str | None:
 
       부수적으로 **OpenAI 호출을 아낍니다.** 못 쓸 사진에는 돈을 쓰지 않습니다.
 
-    무엇을 보는가 — **종이 안쪽만** 봅니다 (_region 의 주석을 먼저 읽으세요)
+    무엇을 보는가 — **종이 안쪽만** 봅니다 (_prepare 의 주석을 먼저 읽으세요)
       1. 글자 줄이 거의 없다   → 계약서가 아니거나 너무 흐리다
       2. 잉크 비율이 이상하다   → 너무 어둡거나 너무 날아갔다
       3. 종이가 너무 작다      → 너무 멀리서 찍었다
@@ -333,11 +366,11 @@ def check(image_base64: str) -> str | None:
 
     판단할 수 없으면 None 입니다. 검사가 안 되는 것 때문에 판정을 막지 않습니다.
     """
-    got = _region(image_base64)
+    got = _prepare(image_base64)
     if got is None:
         return None
 
-    mono, ink, paper_share = got
+    mono, ink, paper_share = got.mono, got.ink, got.paper_share
 
     # 사진이 통째로 어둡습니다. 종이를 찾을 수조차 없었습니다.
     if mono is None:
@@ -367,6 +400,16 @@ def snap(image_base64: str, marks: dict[str, Any]) -> dict[str, Any]:
     세로는 찾은 줄에 맞추고, 가로는 **줄이기만** 합니다. 늘리면 표의 항목 이름
     칸이나 세로 칸선까지 물 수 있어서 안전한 방향으로만 움직입니다.
 
+    **종이 안쪽에서 줄을 찾습니다** (_prepare). 전에는 사진 전체에서 찾았는데,
+    종이 주변에 어두운 책상이 같이 찍히면 Otsu 문턱이 종이와 배경 사이에 생겨서
+    밴드가 글자 줄이 아니라 배경 덩어리가 됐습니다. 대개는 크기가 안 맞아
+    아래 안전장치에 걸려 모델 좌표로 되돌아갔지만, 어쩌다 크기가 맞으면
+    **엉뚱한 자리에 형광펜이 붙었습니다.** 그래서 어떤 조항은 맞고 어떤 조항은
+    틀리게 보였습니다.
+
+    좌표는 **사진 전체 기준**으로 돌려줍니다. 앱이 원본 사진 위에 그리기
+    때문입니다. 종이 안에서 찾은 자리에 종이의 위치를 다시 더합니다.
+
     줄을 못 찾거나 찾은 줄이 모델 값과 너무 다르면 손대지 않습니다.
     사진이 기울었거나 그늘이 심하면 줄 찾기가 어긋나는데, 그때 억지로 맞추면
     지금보다 더 엉뚱한 자리에 칠하게 됩니다.
@@ -374,34 +417,35 @@ def snap(image_base64: str, marks: dict[str, Any]) -> dict[str, Any]:
     if not marks:
         return marks
 
-    try:
-        img = Image.open(io.BytesIO(base64.b64decode(image_base64))).convert("L")
-        if img.width > SNAP_WIDTH:
-            img = img.resize(
-                (SNAP_WIDTH, max(1, round(img.height * SNAP_WIDTH / img.width))),
-                Image.LANCZOS,
-            )
-        w, h = img.size
+    got = _prepare(image_base64)
+    if got is None or got.mono is None or got.box is None:
+        return marks
 
-        thr = _otsu(img.histogram())
-        # 글자를 255, 배경을 0 으로. 아래 평균 계산이 곧 잉크 비율이 됩니다.
-        mono = img.point(lambda v: 255 if v <= thr else 0, mode="L")
+    mono = got.mono
+    w, h = got.size
+    px0, py0, px1, py1 = got.box
+    pw, ph = px1 - px0, py1 - py0
 
-        bands = _bands(_profile(mono, "rows"))
-        if not bands:
-            return marks
-    except Exception:  # noqa: BLE001 — 표시는 없어도 되는 기능입니다
+    bands = _bands(_profile(mono, "rows"))
+    if not bands:
         return marks
 
     out: dict[str, Any] = {}
 
     for cid, m in marks.items():
         try:
-            top = float(m["top"]) * h
-            bottom = float(m["bottom"]) * h
-            left = float(m["left"]) * w
-            right = float(m["right"]) * w
+            # 사진 전체 기준 픽셀 → 종이 안쪽 기준 픽셀
+            top = float(m["top"]) * h - py0
+            bottom = float(m["bottom"]) * h - py0
+            left = float(m["left"]) * w - px0
+            right = float(m["right"]) * w - px0
         except (KeyError, TypeError, ValueError):
+            out[cid] = m
+            continue
+
+        # 종이 밖을 가리키는 자리는 손대지 않습니다. 모델이 배경을 짚었거나
+        # 종이 검출이 어긋난 경우인데, 어느 쪽이든 맞출 근거가 없습니다.
+        if bottom <= 0 or top >= ph or right <= 0 or left >= pw:
             out[cid] = m
             continue
 
@@ -419,16 +463,16 @@ def snap(image_base64: str, marks: dict[str, Any]) -> dict[str, Any]:
             continue
 
         b0, b1 = best
-        got = b1 - b0 + 1
+        got_h = b1 - b0 + 1
 
         # 찾은 줄이 모델 값과 너무 다르면 줄을 잘못 찾은 것입니다
-        if not (BAND_MIN * want <= got <= BAND_MAX * want):
+        if not (BAND_MIN * want <= got_h <= BAND_MAX * want):
             out[cid] = m
             continue
 
         # 가로는 그 줄 안의 잉크로 줄이기만 합니다
         new_left, new_right = left, right
-        x0, x1 = int(max(0, left)), int(min(w, right))
+        x0, x1 = int(max(0, left)), int(min(pw, right))
         if x1 - x0 >= 2:
             cols = _profile(mono.crop((x0, b0, x1, b1 + 1)), "cols")
             ink = [i for i, r in enumerate(cols) if r > 0]
@@ -436,12 +480,13 @@ def snap(image_base64: str, marks: dict[str, Any]) -> dict[str, Any]:
                 new_left = x0 + ink[0]
                 new_right = x0 + ink[-1] + 1
 
+        # 종이 안쪽 기준 → 사진 전체 기준
         out[cid] = {
             **m,
-            "top": round(b0 / h, 4),
-            "bottom": round((b1 + 1) / h, 4),
-            "left": round(new_left / w, 4),
-            "right": round(new_right / w, 4),
+            "top": round((py0 + b0) / h, 4),
+            "bottom": round((py0 + b1 + 1) / h, 4),
+            "left": round((px0 + new_left) / w, 4),
+            "right": round((px0 + new_right) / w, 4),
         }
 
     return out
