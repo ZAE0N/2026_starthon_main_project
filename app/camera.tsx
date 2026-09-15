@@ -298,18 +298,24 @@ export default function Camera() {
         {/* 미리보기 위에 겹치는 것들. 터치는 통과시킵니다 */}
         <View style={styles.camOverlay} pointerEvents="none">
           {/*
-            문구는 위아래로 나눠 두고 가운데는 비웁니다. 미리보기를 가리지
-            않아야 계약서를 화면에 가득 채워 찍을 수 있습니다.
+            문구는 조작부 바로 위에 둡니다.
+
+            가운데를 비워야 계약서를 화면에 가득 채워 찍을 수 있습니다.
+            위쪽에 두면 폰을 들었을 때 시선이 화면 위로 가서 계약서를 아래로
+            밀게 됩니다. 아래에 두면 셔터를 누르려고 어차피 보는 자리입니다.
+
+            어두운 판을 깔아 어떤 미리보기 위에서도 읽히게 합니다. 농도는
+            조작부(camFoot)와 같은 0.45 입니다. 더 진하면 미리보기를 가리고,
+            더 옅으면 흰 계약서 위에서 글자가 묻힙니다.
           */}
-          <Text style={styles.camHint}>
-            계약서가 화면에 가득 차게 찍어주세요
-          </Text>
-
-          <View style={styles.camSpacer} />
-
-          <Text style={styles.camHintSub}>
-            밝은 곳에서, 그림자가 지지 않게
-          </Text>
+          <View style={styles.camNotice}>
+            <Text style={styles.camHint}>
+              계약서가 화면에 가득 차게 찍어주세요
+            </Text>
+            <Text style={styles.camHintSub}>
+              밝은 곳에서, 그림자가 지지 않게
+            </Text>
+          </View>
         </View>
 
         {/* 조작부 */}
@@ -442,9 +448,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: "center",
-    justifyContent: "center",
-    gap: space.lg,
+    /* 문구를 아래로 붙입니다. 가운데는 미리보기로 비워둡니다 */
+    justifyContent: "flex-end",
     paddingHorizontal: space.lg,
+    /*
+     * 조작부(camFoot) 높이만큼 띄웁니다.
+     * 셔터 68 + paddingTop 16 + paddingBottom 32 = 116. 거기에 여백 16.
+     */
+    paddingBottom: 132,
   },
   camHint: {
     color: colors.white,
@@ -452,8 +463,15 @@ const styles = StyleSheet.create({
     fontWeight: weight.semibold,
     textAlign: "center",
   },
-  /* 위아래 문구 사이를 벌려 가운데를 비웁니다. 미리보기를 가리지 않습니다 */
-  camSpacer: { flex: 1 },
+  /* 안내 문구를 담는 판. 미리보기 위에서도 읽히게 어둡게 깔았습니다 */
+  camNotice: {
+    alignItems: "center",
+    gap: space.xs,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.lg,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
   camHintSub: {
     color: colors.grayLight,
     fontSize: font.small,
