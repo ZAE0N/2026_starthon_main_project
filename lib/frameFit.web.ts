@@ -199,14 +199,11 @@ export function paperBox(data: Uint8ClampedArray, w: number, h: number): Box | n
  * @param active 카메라가 열려 있을 때만 true 를 넘기세요
  * @param hostRef 카메라를 감싼 View. 여기서 <video> 를 찾습니다
  * @param frameRef 가이드 네모 View
- * @param _camRef 폰 쪽과 인자 모양을 맞추기 위한 자리입니다. 웹에서는 쓰지
- *   않습니다 — 브라우저가 미리보기를 직접 읽으므로 사진을 찍을 필요가 없습니다.
  */
 export function useFrameFit(
   active: boolean,
   hostRef?: unknown,
-  frameRef?: unknown,
-  _camRef?: unknown
+  frameRef?: unknown
 ): FrameFit {
   const [state, setState] = useState<FitState>("unknown");
   const canvas = useRef<HTMLCanvasElement | null>(null);

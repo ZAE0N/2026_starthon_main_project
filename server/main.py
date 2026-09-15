@@ -1,9 +1,8 @@
 """
 알바 계약서 검진 서버.
 
-엔드포인트는 세 개뿐입니다.
-  POST /inspect  사진 → 판정 (OpenAI 를 부릅니다. 느리고 비쌉니다)
-  POST /frame    작은 사진 → 종이의 자리 (Pillow 만. 촬영 화면이 계속 부릅니다)
+엔드포인트는 두 개뿐입니다.
+  POST /inspect  사진 → 판정
   GET  /health   살아있는지 (인증 없음)
 
 경로에 /api 나 /v1 같은 접두사를 붙이면 안 됩니다.
@@ -25,14 +24,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 import inspector  # noqa: E402  (load_dotenv 뒤에 와야 환경변수를 읽습니다)
 import laws  # noqa: E402
-import paperbox  # noqa: E402
 from inspector import InspectError, UnauthorizedError  # noqa: E402
-from schema import (  # noqa: E402
-    FrameRequest,
-    FrameResponse,
-    InspectRequest,
-    InspectResponse,
-)
+from schema import InspectRequest, InspectResponse  # noqa: E402
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -91,7 +84,7 @@ async def _validation_error(request: Request, exc: RequestValidationError):
 @app.middleware("http")
 async def _guard_and_log(request: Request, call_next):
     # nginx 가 앞에 없을 때를 대비한 크기 방어. nginx 를 쓸 때도 둘 다 있어야 합니다.
-    if request.url.path in ("/inspect", "/frame"):
+    if request.url.path == "/inspect":
         declared = request.headers.get("content-length")
         limit = int(float(os.getenv("MAX_IMAGE_MB", "8")) * 1024 * 1024 * 1.4)
         if declared and declared.isdigit() and int(declared) > limit:
@@ -101,10 +94,7 @@ async def _guard_and_log(request: Request, call_next):
     t0 = time.monotonic()
     res = await call_next(request)
     # 사진은 남기지 않습니다. 시각·경로·상태·소요시간만.
-    #
-    # /frame 은 뺍니다. 촬영 화면이 1초에 한 번씩 부르기 때문에 남기면
-    # journal 이 그것으로만 찹니다. 정작 봐야 할 /inspect 로그가 묻힙니다.
-    if request.url.path not in ("/health", "/frame"):
+    if request.url.path != "/health":
         log.info(
             "%s %s -> %s (%.1fs)",
             request.method,
@@ -143,28 +133,6 @@ def inspect(body: InspectRequest, x_app_token: str | None = Header(default=None)
             is_minor=body.isMinor,
         ),
     )
-
-@app.post("/frame", response_model=FrameResponse)
-def frame(body: FrameRequest, x_app_token: str | None = Header(default=None)):
-    """
-    촬영 화면의 실시간 안내. 사진에서 종이가 차지한 자리만 돌려줍니다.
-
-    앱이 가이드 네모를 초록으로 바꿀지 판단하는 데 씁니다. 폰에서는 카메라
-    미리보기의 프레임을 받을 방법이 없어서(expo-camera 에 그런 콜백이 없습니다)
-    작은 사진을 찍어 여기로 보냅니다. 웹은 브라우저가 직접 해서 이걸 안 부릅니다.
-
-    **OpenAI 를 부르지 않습니다.** Pillow 만 씁니다(server/paperbox.py, 수 ms).
-    1초에 한 번씩 들어오는 요청이라 비용이 들면 안 됩니다.
-
-    판정하지 않고 자리만 주는 이유: 가이드 네모가 화면의 어디인지는 앱만
-    압니다. 미리보기가 잘려 보이는 정도(cover)도 기기마다 다릅니다.
-    그 계산은 앱에 두고, 서버는 사진에서 찾을 수 있는 것만 돌려줍니다.
-
-    못 찾으면 box 가 None 입니다. 에러가 아닙니다 — 앱은 네모를 회색으로
-    두고 촬영은 막지 않습니다.
-    """
-    _check_token(x_app_token)
-    return FrameResponse(box=paperbox.find(body.imageBase64))
 
 
 @app.exception_handler(InspectError)

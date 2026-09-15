@@ -55,34 +55,6 @@ class InspectRequest(BaseModel):
     employeeCount: Literal["under5", "over5"] | None = None
     isMinor: bool | None = None
 
-class FrameRequest(BaseModel):
-    """
-    촬영 화면이 1초에 한 번쯤 보내는 작은 사진. (lib/frameFit.ts)
-
-    가이드 네모를 초록으로 바꿀지 판단하는 데만 씁니다. 판정(inspect)과 달리
-    OpenAI 를 부르지 않고, 사진을 저장하지도 않습니다.
-    """
-
-    imageBase64: str = Field(min_length=1)
-
-
-class FrameBox(BaseModel):
-    """사진 안에서 종이가 차지한 자리. 0~1 비율입니다."""
-
-    x0: float
-    y0: float
-    x1: float
-    y1: float
-
-
-class FrameResponse(BaseModel):
-    """
-    box 가 None 이면 **"판단 못 했다"** 입니다. "종이가 없다" 가 아닙니다.
-    앱은 이때 네모를 회색으로 두고 촬영은 막지 않습니다.
-    """
-
-    box: FrameBox | None = None
-
 
 class Scripts(BaseModel):
     soft: str = ""
