@@ -245,16 +245,32 @@ export default function Result() {
               그래서 바꿀 자리가 필요한데, 여기가 그 자리입니다 — 전제가 틀렸다는
               걸 알아차리는 순간이 바로 이 문구를 읽을 때입니다.
 
-              누르면 나이 질문만 다시 뜨고, 답하면 이 화면으로 돌아옵니다.
-              사업장 규모는 저장하지 않아서 다음 촬영 때 다시 묻습니다.
+              사진이 아직 세션에 있으면 답을 바꾸는 즉시 **다시 판정**하고 이
+              결과를 갈아치웁니다(replace 로 이 결과의 id 를 넘깁니다).
+              전제가 바뀌었는데 화면에 옛 판정이 남아 있으면 그게 더 헷갈립니다.
+
+              기록함에서 열어본 경우에는 사진이 없습니다(history 가 session 의
+              사진을 비웁니다). 그때는 값만 바꾸고 돌아옵니다 — 다시 판정하려면
+              사진이 필요한데 없습니다.
             */}
             <Pressable
               style={styles.assumeEdit}
-              onPress={() => router.push("/ask?only=age")}
+              onPress={() =>
+                router.push(
+                  photo
+                    ? `/ask?only=age&replace=${encodeURIComponent(result.id)}`
+                    : "/ask?only=age"
+                )
+              }
               accessibilityRole="button"
               accessibilityLabel="나이 기준 바꾸기"
+              accessibilityHint={
+                photo ? "바꾸면 다시 판정해요" : undefined
+              }
             >
-              <Text style={styles.assumeEditText}>나이 기준 바꾸기</Text>
+              <Text style={styles.assumeEditText}>
+                나이 기준 바꾸기{photo ? " (다시 판정)" : ""}
+              </Text>
             </Pressable>
           </View>
         )}

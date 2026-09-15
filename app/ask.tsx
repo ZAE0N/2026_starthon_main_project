@@ -25,9 +25,17 @@
  *   그 질문 화면이 아예 뜨지 않습니다. 나이는 바뀌지 않으니 매번 묻는 건
  *   번거롭기만 합니다.
  *
- *   바꾸려면 결과 화면의 판정 전제 옆 "바꾸기" 를 누릅니다. 그러면
- *   `/ask?only=age` 로 들어와 나이 질문만 뜨고, 답하면 왔던 화면으로 돌아갑니다.
+ *   바꾸려면 결과 화면의 판정 전제 아래 "바꾸기" 를 누릅니다. 그러면
+ *   `/ask?only=age` 로 들어와 나이 질문만 뜹니다.
  *   사업장 규모는 저장하지 않습니다 — 다른 알바를 시작하면 달라지는 값입니다.
+ *
+ *   답을 **바꿨고** 사진이 아직 세션에 있으면 곧바로 다시 판정합니다.
+ *   그때 결과 화면이 `replace` 로 옛 결과의 id 를 넘겨주고, 분석중 화면이
+ *   새 결과를 저장한 **뒤에** 그 id 를 지웁니다. 순서가 중요합니다 — 먼저
+ *   지우면 새 판정이 실패했을 때 아무것도 남지 않습니다.
+ *
+ *   답이 그대로면 다시 판정하지 않습니다. 같은 사진에 같은 조건이라 결과가
+ *   같은데 호출만 한 번 더 나갑니다.
  *
  * 답을 강제하지 않습니다:
  *   아래 "건너뛰기" 로 넘길 수 있습니다. 안 고르면 5인 이상·만 18세 이상
@@ -53,7 +61,12 @@ import {
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import AskArt from "../components/AskArt";
-import { setWorkplace, useSavedAge, useWorkplace } from "../lib/session";
+import {
+  getCurrentPhoto,
+  setWorkplace,
+  useSavedAge,
+  useWorkplace,
+} from "../lib/session";
 import {
   colors,
   font,
@@ -77,10 +90,19 @@ export default function Ask() {
   useSavedAge();
 
   const answers = useWorkplace();
-  const { only } = useLocalSearchParams<{ only?: string }>();
+  const { only, replace } = useLocalSearchParams<{
+    only?: string;
+    replace?: string;
+  }>();
 
   /** 나이만 다시 묻는 모드. 결과 화면의 "바꾸기" 로 들어옵니다 */
   const ageOnly = only === "age";
+
+  /**
+   * 다시 판정한 뒤 갈아치울 옛 결과의 id.
+   * 결과 화면이 사진을 들고 있을 때만 넘겨줍니다.
+   */
+  const replaceId = typeof replace === "string" ? replace : "";
 
   const [step, setStep] = useState<Step>(ageOnly ? 1 : 0);
 
@@ -109,15 +131,26 @@ export default function Ask() {
     };
   }, []);
 
-  /** 다음 단계로. 마지막이면 촬영 안내로 넘깁니다 */
-  const go = (next: Step | "done") => {
+  /**
+   * 다음 단계로. 마지막이면 다음 화면으로 넘깁니다.
+   *
+   * @param changed 나이 답이 실제로 바뀌었는지. 안 바뀌면 다시 판정하지 않습니다.
+   */
+  const go = (next: Step | "done", changed = false) => {
     if (next === "done") {
-      if (ageOnly) {
-        // 결과 화면에서 바꾸러 온 경우. 왔던 화면으로 돌려보냅니다.
-        router.back();
-      } else {
+      if (!ageOnly) {
         router.replace("/camera");
+        return;
       }
+
+      // 답을 바꿨고 사진이 남아 있으면 바로 다시 판정합니다.
+      if (changed && replaceId !== "" && getCurrentPhoto()) {
+        router.replace(`/analyzing?replace=${encodeURIComponent(replaceId)}`);
+        return;
+      }
+
+      // 그 외에는 왔던 화면으로 돌아갑니다.
+      router.back();
       return;
     }
 
@@ -219,8 +252,10 @@ export default function Ask() {
               { label: "아니요", on: answers.isMinor === false },
             ]}
             onPick={(i) => {
-              setWorkplace({ isMinor: i === 0 });
-              go("done");
+              const next = i === 0;
+              const changed = answers.isMinor !== next;
+              setWorkplace({ isMinor: next });
+              go("done", changed);
             }}
             onSkip={() => go("done")}
           />
