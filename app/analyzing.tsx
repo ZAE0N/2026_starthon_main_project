@@ -128,6 +128,11 @@ let nextStart = 0;
 
 export default function Analyzing() {
   const [errorKind, setErrorKind] = useState<ApiErrorKind | null>(null);
+  /**
+   * 서버가 알려준 이유. 사진을 왜 못 읽었는지처럼 구체적인 안내입니다.
+   * 없으면 빈 문자열이고, 그때는 기본 문구만 보여줍니다.
+   */
+  const [errorWhy, setErrorWhy] = useState("");
   /** 다시 시도할 때 분석을 한 번 더 돌리기 위한 값 */
   const [attempt, setAttempt] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -212,6 +217,9 @@ export default function Analyzing() {
       } catch (e) {
         if (!alive) return;
         const kind = e instanceof ApiError ? e.kind : "server";
+        const why = e instanceof ApiError ? e.message : "";
+        // ApiError 는 이유가 없으면 kind 를 message 로 씁니다. 그건 안 보여줍니다.
+        setErrorWhy(why && why !== kind ? why : "");
 
         // 계약서가 아님 / 글자를 못 읽음 은 서버가 사진을 보고 답한 것이므로
         // 이것도 판정입니다. 막대를 100% 까지 올린 뒤에 알려줍니다.
@@ -327,6 +335,14 @@ export default function Analyzing() {
 
           <Text style={styles.title}>{msg.title}</Text>
           <Text style={styles.sub}>{msg.body}</Text>
+
+          {/*
+            서버가 이유를 알려줬으면 한 줄 더 보여줍니다.
+            "다시 찍어주세요" 보다 "화면 밖으로 잘렸어요" 가 훨씬 도움이 됩니다.
+          */}
+          {errorWhy !== "" ? (
+            <Text style={styles.why}>{errorWhy}</Text>
+          ) : null}
         </View>
 
         <View style={styles.foot}>
@@ -342,6 +358,7 @@ export default function Analyzing() {
               }
               // 같은 사진으로 다시 보냅니다. 사진은 아직 session 에 있습니다.
               setErrorKind(null);
+              setErrorWhy("");
               setElapsed(0);
               setPercent(0);
               setFactIndex(0);
@@ -480,6 +497,18 @@ const styles = StyleSheet.create({
     color: colors.gray,
     textAlign: "center",
     lineHeight: 22,
+  },
+  /* 서버가 알려준 구체적인 이유 */
+  why: {
+    marginTop: space.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.amberBg,
+    fontSize: font.small,
+    color: colors.amber,
+    textAlign: "center",
+    lineHeight: 20,
   },
 
   /* 기다리는 동안 보여줄 정보 (시안 3번의 통계 카드 자리) */

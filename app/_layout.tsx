@@ -38,6 +38,11 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        {/*
+          촬영 전 조건 질문. 헤더를 숨기고 화면 안에서 뒤로 버튼과 단계 막대를
+          직접 그립니다. 질문 화면에 제목 헤더가 같이 있으면 제목이 두 개가 됩니다.
+        */}
+        <Stack.Screen name="ask" options={{ headerShown: false }} />
         <Stack.Screen name="camera" options={{ title: "계약서 사진" }} />
         {/*
           분석 중에는 뒤로 못 가게 막습니다. 돌아가면 분석이 다시 돕니다.

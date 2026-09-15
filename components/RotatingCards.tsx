@@ -262,32 +262,35 @@ const styles = StyleSheet.create({
   },
 
   box: { justifyContent: "center" },
-  layer: { position: "absolute", left: 0, right: 0 },
+  /*
+   * 카드가 칸 전체를 채우게 위·아래를 다 잡습니다. 그래야 글자 길이가 달라도
+   * 카드 크기가 전부 같습니다. 안 그러면 짧은 카드는 작게, 긴 카드는 크게
+   * 보여서 바뀔 때마다 덩어리가 들쭉날쭉합니다.
+   */
+  layer: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
 
   /*
    * 한 장만 보이니까 크게 잡았습니다.
    *
-   * 배경은 화면과 같은 흰색이고, 떠 있는 느낌은 그림자와 얇은 테두리로 냅니다.
-   * 회색 배경(surface)으로 하면 덩어리가 커 보여서 화면이 무거워집니다.
+   * 배경은 흰색이 아니라 surface(#F7F9FC)입니다. 화면이 흰색이라 카드도
+   * 흰색이면 테두리로만 구분되고 카드로 안 읽힙니다.
    *
-   * 그림자는 아주 옅습니다(불투명도 0.07). 계약서를 찍는 앱이라 카드가 제일
-   * 튀면 안 됩니다. iOS 는 shadow*, 안드로이드는 elevation 이고, 웹은
-   * react-native-web 이 shadow* 를 box-shadow 로 바꿔줍니다.
+   * 그림자는 **아래쪽에만** 둡니다. 사방에 퍼지면 테두리를 두 번 그린 것처럼
+   * 보이는데, 아래로만 내리면 공중에 떠 있는 느낌이 납니다.
+   * boxShadow 의 네 번째 값(-6px)이 번짐을 안쪽으로 당겨서 위·옆으로는
+   * 거의 안 나오게 합니다. shadowOffset 으로는 이 조절이 안 됩니다.
+   *
+   * boxShadow 는 React Native 0.76 부터 쓸 수 있고 웹에서도 같은 값으로
+   * 그려집니다. 어색하면 이 한 줄만 지우면 됩니다.
    */
   card: {
-    backgroundColor: colors.bg,
+    flex: 1,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
     paddingVertical: space.lg,
     paddingHorizontal: space.lg,
     gap: space.sm,
-
-    shadowColor: colors.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
+    boxShadow: "0 8px 14px -6px rgba(18, 41, 77, 0.16)",
   },
 
   title: {

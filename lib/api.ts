@@ -114,6 +114,24 @@ function toClause(raw: unknown, id: CheckId): Clause {
  * 항상 8개를 정해진 순서로 맞춰줍니다.
  * 이게 없으면 "8개 중 2개 문제"라는 화면 문구가 거짓이 됩니다.
  */
+/**
+ * 서버가 보낸 이유를 꺼냅니다. `{"detail": "..."}` 형태입니다. (server/main.py)
+ *
+ * 없거나 이상하면 빈 문자열입니다. 그때는 화면이 기본 문구만 씁니다.
+ * 200자를 넘으면 버립니다 — 화면에 넣을 한 줄이지 로그가 아닙니다.
+ */
+async function reason(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    const detail = body?.detail;
+    if (typeof detail !== "string") return "";
+    const text = detail.trim();
+    return text.length > 0 && text.length <= 200 ? text : "";
+  } catch {
+    return "";
+  }
+}
+
 /** 0 이상 1 이하의 실수인지 */
 function ratio(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1;
@@ -270,7 +288,11 @@ async function run(imageBase64: string): Promise<InspectResult> {
   }
   clearTimeout(timer);
 
-  if (res.status === 422) throw new ApiError("unreadable");
+  if (res.status === 422) {
+    // 서버가 왜 못 읽었는지 알려줍니다. 분석중 화면이 한 줄 더 보여줍니다.
+    // 이유를 못 받으면(옛 서버) 기본 문구만 나옵니다.
+    throw new ApiError("unreadable", await reason(res));
+  }
   if (res.status === 415) throw new ApiError("notContract");
   if (!res.ok) throw new ApiError("server", `HTTP ${res.status}`);
 
