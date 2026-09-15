@@ -6,19 +6,20 @@
  *   2) 앱 안 카메라 — "사진 찍기" 를 누르면 전체 화면으로 열립니다.
  *      expo-camera 의 미리보기 위에 초록 가이드 네모를 겹칩니다. 시안 2번입니다
  *
- * 가이드 네모는 **항상 초록**입니다. 색이 바뀌지 않습니다.
+ * 카메라 화면에는 **가이드 네모가 없습니다.** 미리보기와 안내 문구만 있습니다.
  *
- * 전에는 계약서가 네모 안에 들어왔는지 실시간으로 판정해서 초록/회색을
- * 바꿨습니다(lib/frameFit). 웹은 미리보기를 직접 읽고, 폰은 1초에 한 번
- * 작은 사진을 찍어 서버에 물어보는 방식이었습니다.
+ * 세 번 바꿨습니다. 처음에는 계약서가 네모 안에 들어왔는지 실시간으로 판정해
+ * 초록/회색을 바꿨고(lib/frameFit), 실기기에서 초록이 안 켜져서 항상 초록인
+ * 고정 네모로 바꿨고, 결국 네모 자체를 없앴습니다.
  *
- * 실기기에서 초록이 켜지지 않아 걷어냈습니다. 네모를 어디에 맞춰야 하는지
- * 알려주는 것이 원래 목적이고, 그건 고정된 네모만으로도 됩니다. 색이 안
- * 바뀌는 것보다 **틀린 색이 뜨는 것이 더 나쁩니다** — 초록이 안 켜지면
- * 사용자는 맞게 찍었는데도 틀렸다고 생각하고 계속 다시 맞춥니다.
+ * 네모가 오히려 방해였습니다. A4 비율로 고정된 네모라, 계약서를 화면에 가득
+ * 채워 잘 찍어도 네모와 어긋나 보입니다. 그러면 사용자는 네모에 맞추려고
+ * 계약서를 더 작게 찍습니다. 글자가 작아지면 판독이 나빠집니다.
  *
- * 찍은 뒤에 서버가 사진을 한 번 더 검사합니다(server/textlines.py 의 check).
- * 흐리거나 어둡거나 계약서가 아니면 그때 다시 찍으라고 안내합니다.
+ * 찍은 뒤에 서버가 사진을 검사합니다(server/textlines.py 의 check).
+ * 너무 어둡거나 글자가 없거나 너무 멀리서 찍었으면 그때 다시 찍으라고
+ * 안내합니다. 촬영 전에 막는 것보다 이쪽이 정확합니다 — 실제 사진을 보고
+ * 판단하니까요.
  *
  * 앱 안 카메라가 안 되면(권한 거부·기기 문제) 폰 기본 카메라로 되돌아갑니다.
  * 촬영은 모든 흐름의 입구라서, 막히면 앱 전체가 멈춥니다. 그래서 되돌아갈 길을
@@ -280,12 +281,10 @@ export default function Camera() {
     </View>
 
     {/*
-      앱 안 카메라. expo-camera 미리보기 위에 초록 가이드 네모를 겹칩니다.
-      시안 2번입니다.
+      앱 안 카메라. expo-camera 미리보기 위에 안내 문구만 겹칩니다.
 
-      네모는 A4 비율(0.707)로 두었습니다. 계약서가 대개 A4 라서, 이 안에
-      맞추면 잘리지 않습니다. 네모 밖은 어둡게 덮어 어디에 맞춰야 하는지
-      눈에 바로 들어오게 했습니다.
+      가이드 네모는 없앴습니다. A4 비율로 고정된 네모가 오히려 계약서를
+      작게 찍게 만들었습니다. 위쪽 주석을 보세요.
     */}
     <Modal
       visible={shooting}
@@ -298,16 +297,15 @@ export default function Camera() {
 
         {/* 미리보기 위에 겹치는 것들. 터치는 통과시킵니다 */}
         <View style={styles.camOverlay} pointerEvents="none">
+          {/*
+            문구는 위아래로 나눠 두고 가운데는 비웁니다. 미리보기를 가리지
+            않아야 계약서를 화면에 가득 채워 찍을 수 있습니다.
+          */}
           <Text style={styles.camHint}>
-            초록 네모 안에 계약서 전체가 들어오게 맞춰주세요
+            계약서가 화면에 가득 차게 찍어주세요
           </Text>
 
-          <View style={styles.frame}>
-            <View style={[styles.corner, styles.cornerTL]} />
-            <View style={[styles.corner, styles.cornerTR]} />
-            <View style={[styles.corner, styles.cornerBL]} />
-            <View style={[styles.corner, styles.cornerBR]} />
-          </View>
+          <View style={styles.camSpacer} />
 
           <Text style={styles.camHintSub}>
             밝은 곳에서, 그림자가 지지 않게
@@ -454,6 +452,8 @@ const styles = StyleSheet.create({
     fontWeight: weight.semibold,
     textAlign: "center",
   },
+  /* 위아래 문구 사이를 벌려 가운데를 비웁니다. 미리보기를 가리지 않습니다 */
+  camSpacer: { flex: 1 },
   camHintSub: {
     color: colors.grayLight,
     fontSize: font.small,
@@ -464,14 +464,6 @@ const styles = StyleSheet.create({
    * 가이드 네모. A4 비율(0.707)로 두었습니다. 계약서가 대개 A4 라서
    * 이 안에 맞추면 잘리지 않습니다.
    */
-  frame: {
-    width: "100%",
-    aspectRatio: 0.707,
-    maxHeight: "70%",
-    borderWidth: 2,
-    borderColor: colors.green,
-    borderRadius: radius.sm,
-  },
 
   camFoot: {
     position: "absolute",
