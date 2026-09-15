@@ -7,9 +7,12 @@
  *      expo-camera 의 미리보기 위에 초록 가이드 네모를 겹칩니다. 시안 2번입니다
  *
  * 가이드 네모는 상태에 따라 색이 바뀝니다. 맞으면 초록, 아직이면 회색입니다.
- * 무엇을 보고 판단하는지는 폰과 웹이 다릅니다 — lib/frameFit.ts 의 주석을 보세요.
- *   웹: 미리보기를 실제로 읽어서 계약서가 네모 안에 들어왔는지
- *   폰: 폰이 좌우로 기울었는지 (Expo Go 에서는 미리보기 프레임을 못 받습니다)
+ * 둘 다 계약서가 네모 안에 들어왔는지를 봅니다. 읽는 방법만 다릅니다 —
+ * 자세한 것은 lib/frameFit.ts 의 주석을 보세요.
+ *   웹: 미리보기를 브라우저가 직접 읽습니다
+ *   폰: 1초에 한 번 작은 사진을 찍어 서버(POST /frame)에 물어봅니다.
+ *       expo-camera 에 프레임을 주는 콜백이 없어서 이렇게 합니다.
+ *       서버에 못 물으면 가속도계로 좌우 회전만 봅니다.
  *
  * 앱 안 카메라가 안 되면(권한 거부·기기 문제) 폰 기본 카메라로 되돌아갑니다.
  * 촬영은 모든 흐름의 입구라서, 막히면 앱 전체가 멈춥니다. 그래서 되돌아갈 길을
@@ -69,12 +72,22 @@ export default function Camera() {
   const [camPerm, requestCamPerm] = useCameraPermissions();
 
   /*
-   * 실시간 안내. 웹에서는 아래 두 ref 로 <video> 와 가이드 네모의 자리를 찾아
-   * 미리보기를 읽습니다. 폰에서는 ref 를 쓰지 않고 기울기만 봅니다.
+   * 실시간 안내. 세 ref 를 다 넘깁니다.
+   *   camHostRef  미리보기가 화면의 어디인지 (웹은 여기서 <video> 를 찾습니다)
+   *   frameRef    가이드 네모가 화면의 어디인지
+   *   camRef      폰에서 안내용 사진을 찍을 곳 (웹은 쓰지 않습니다)
+   *
+   * busy 가 걸린 동안에는 끕니다. 안내용 촬영과 실제 셔터가 겹치면 둘 다
+   * 실패하거나 한쪽이 몇 초 늦게 돌아옵니다.
    */
   const camHostRef = useRef<View>(null);
   const frameRef = useRef<View>(null);
-  const fit = useFrameFit(shooting, camHostRef, frameRef);
+  const fit = useFrameFit(
+    shooting && busy === null,
+    camHostRef,
+    frameRef,
+    camRef
+  );
   const guide = fit.state === "ok" ? guideColor.ok : guideColor.wait;
 
   /**
@@ -294,7 +307,17 @@ export default function Camera() {
       statusBarTranslucent
     >
       <View style={styles.camScreen} ref={camHostRef}>
-        <CameraView ref={camRef} style={styles.camView} facing="back" />
+        {/*
+          animateShutter={false} 가 필요합니다. 실시간 안내가 1초에 한 번
+          takePictureAsync 를 부르는데, 기본값이면 그때마다 화면이 번쩍입니다.
+          셔터음은 촬영 옵션에서 따로 끕니다 (lib/frameFit.ts).
+        */}
+        <CameraView
+          ref={camRef}
+          style={styles.camView}
+          facing="back"
+          animateShutter={false}
+        />
 
         {/* 미리보기 위에 겹치는 것들. 터치는 통과시킵니다 */}
         <View style={styles.camOverlay} pointerEvents="none">

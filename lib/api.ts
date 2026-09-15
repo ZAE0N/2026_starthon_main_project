@@ -320,6 +320,84 @@ async function run(imageBase64: string): Promise<InspectResult> {
   return result;
 }
 
+/** 사진 안에서 종이가 차지한 자리. 0~1 비율입니다. (server/paperbox.py) */
+export type PaperBox = { x0: number; y0: number; x1: number; y1: number };
+
+/**
+ * 촬영 화면의 실시간 안내용. 이 시간(밀리초) 안에 답이 없으면 버립니다.
+ *
+ * 판정(45초)과 완전히 다른 기준입니다. 2초 뒤에 오는 답은 이미 다른 화면을
+ * 가리키고 있어서 쓸 수가 없습니다. 기다리는 것보다 버리고 다음 장을 찍는 게
+ * 낫습니다.
+ */
+const FRAME_TIMEOUT_MS = 2000;
+
+/**
+ * findPaper 의 결과.
+ *
+ * **두 가지 실패를 구분해야 합니다.**
+ *   asked: false        → 서버에 못 물었다 (네트워크·타임아웃·목 모드)
+ *   asked: true, null   → 서버가 답했고, 종이를 못 찾았다
+ *
+ * 앞은 "모르겠다" 라서 다른 판단(기울기)으로 넘어가야 하고, 뒤는 "종이가
+ * 제대로 안 들어왔다" 라서 네모를 회색으로 둬야 합니다. 둘을 null 하나로
+ * 합치면 서버가 종이를 못 찾았는데 기울기만 맞아서 초록이 켜집니다.
+ */
+export type PaperResult =
+  | { asked: true; box: PaperBox | null }
+  | { asked: false };
+
+/**
+ * 작은 사진을 보내 종이의 자리를 받아옵니다. (lib/frameFit.ts 가 씁니다)
+ *
+ * **절대 throw 하지 않습니다.** 이건 촬영을 돕는 안내일 뿐이라, 실패했다고
+ * 화면에 에러를 띄우면 안 됩니다. 서버가 죽어도 사진은 찍을 수 있어야 합니다.
+ *
+ * 목 모드에서는 부르지 않습니다. 서버가 없으니 부를 곳도 없습니다.
+ */
+export async function findPaper(
+  imageBase64: string,
+): Promise<PaperResult> {
+  if (USE_MOCK || !API_URL) return { asked: false };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FRAME_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${API_URL}/frame`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(API_TOKEN ? { "X-App-Token": API_TOKEN } : {}),
+      },
+      body: JSON.stringify({ imageBase64 }),
+      signal: controller.signal,
+    });
+    // 401 이나 5xx 는 서버에 못 물은 것으로 봅니다. 토큰이 틀렸는데
+    // "종이를 못 찾았다" 로 읽으면 원인을 영원히 못 찾습니다.
+    if (!res.ok) return { asked: false };
+
+    const raw = await res.json();
+    const b = raw?.box;
+
+    // 서버가 답했지만 종이를 못 찾은 경우입니다. 에러가 아닙니다.
+    if (!b || typeof b !== "object") return { asked: true, box: null };
+
+    const { x0, y0, x1, y1 } = b;
+    if (!ratio(x0) || !ratio(y0) || !ratio(x1) || !ratio(y1)) {
+      return { asked: true, box: null };
+    }
+    if (x1 <= x0 || y1 <= y0) return { asked: true, box: null };
+
+    return { asked: true, box: { x0, y0, x1, y1 } };
+  } catch {
+    // 타임아웃·네트워크·형식 오류 전부 여기로 옵니다. 조용히 포기합니다.
+    return { asked: false };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** 서버가 살아 있는지 확인 (발표 직전 점검용) */
 export async function ping(): Promise<boolean> {
   if (!API_URL) return false;
